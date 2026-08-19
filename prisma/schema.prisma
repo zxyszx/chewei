@@ -1,0 +1,153 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  ADMIN
+  OPERATOR
+}
+
+enum RecordStatus {
+  ACTIVE
+  PAUSED
+  ABNORMAL
+  EXITED
+}
+
+enum PaymentMethod {
+  WECHAT
+  ALIPAY
+  CARD
+  CASH
+  OTHER
+}
+
+model Platform {
+  id              String        @id @default(cuid())
+  name            String
+  slug            String        @unique
+  icon            String?
+  defaultCapacity Int           @default(5)
+  status          RecordStatus  @default(ACTIVE)
+  parkingSlots    ParkingSlot[]
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@map("platforms")
+}
+
+model ParkingSlot {
+  id                String          @id @default(cuid())
+  platformId        String
+  platform          Platform        @relation(fields: [platformId], references: [id], onDelete: Restrict)
+  slotNumber        Int
+  accountEmail      String
+  encryptedPassword String
+  cardLast4         String?
+  billingDay        Int
+  capacity          Int
+  status            RecordStatus    @default(ACTIVE)
+  note              String?
+  members           Member[]
+  renewals          Renewal[]
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@unique([platformId, slotNumber])
+  @@index([accountEmail])
+  @@map("parking_slots")
+}
+
+model Member {
+  id         String       @id @default(cuid())
+  slotId     String
+  slot       ParkingSlot  @relation(fields: [slotId], references: [id], onDelete: Restrict)
+  nickname   String
+  contact    String
+  startDate  DateTime     @db.Date
+  expireDate DateTime     @db.Date
+  status     RecordStatus @default(ACTIVE)
+  note       String?
+  renewals   Renewal[]
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  @@index([contact])
+  @@index([expireDate])
+  @@map("members")
+}
+
+model Renewal {
+  id              String        @id @default(cuid())
+  memberId        String
+  member          Member        @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  slotId          String
+  slot            ParkingSlot   @relation(fields: [slotId], references: [id], onDelete: Restrict)
+  oldExpireDate   DateTime       @db.Date
+  newExpireDate   DateTime       @db.Date
+  months          Int?
+  amount          Decimal       @db.Decimal(10, 2)
+  paymentMethod   PaymentMethod
+  note            String?
+  operatorId      String
+  operator        User          @relation(fields: [operatorId], references: [id], onDelete: Restrict)
+  createdAt       DateTime       @default(now())
+
+  @@index([createdAt])
+  @@map("renewals")
+}
+
+model User {
+  id            String         @id @default(cuid())
+  username      String         @unique
+  passwordHash  String
+  role          UserRole       @default(OPERATOR)
+  status        RecordStatus   @default(ACTIVE)
+  renewals      Renewal[]
+  operationLogs OperationLog[]
+  sessions      Session[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+model OperationLog {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  action       String
+  resourceType String
+  resourceId   String?
+  detail       Json?
+  ip           String?
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
+  @@map("operation_logs")
+}
+
+model Setting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+
+  @@map("settings")
+}
