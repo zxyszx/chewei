@@ -23,6 +23,7 @@
     "bcryptjs": "latest",
     "clsx": "latest",
     "date-fns": "latest",
+    "dotenv": "latest",
     "lucide-react": "latest",
     "next": "latest",
     "pg": "latest",

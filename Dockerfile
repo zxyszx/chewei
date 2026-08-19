@@ -1,14 +1,15 @@
 FROM node:24-alpine AS dependencies
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci --ignore-scripts
 
 FROM node:24-alpine AS builder
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV DATABASE_URL=postgresql://parking:build-only@db:5432/parking_manager
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY . .
-RUN npm run build
+RUN npm run postinstall && npm run build
 
 FROM node:24-alpine AS runner
 WORKDIR /app
