@@ -36,7 +36,7 @@ openssl rand -hex 32
 将生成值和强密码写入 `.env.production`：
 
 ```dotenv
-POSTGRES_PASSWORD=高强度数据库密码
+POSTGRES_PASSWORD=建议使用 openssl rand -hex 24 生成的数据库密码
 AUTH_SECRET=上一步生成的会话密钥
 ENCRYPTION_KEY=上一步生成的64位十六进制密钥
 ADMIN_USERNAME=admin
