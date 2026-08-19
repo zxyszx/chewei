@@ -3,6 +3,7 @@ import { ActionForm } from "@/components/action-form";
 import { SubmitButton, PageHeader, Badge } from "@/components/ui";
 import { updatePlatformAction, updateRemindersAction } from "@/app/actions";
 import { requireUser } from "@/lib/auth";
+import { configuredReminderDays } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
 
 export const metadata = { title: "系统设置" };
@@ -10,7 +11,7 @@ export const metadata = { title: "系统设置" };
 export default async function SettingsPage() {
   const user = await requireUser();
   const [setting, platforms, users] = await Promise.all([prisma.setting.findUnique({ where: { key: "reminderDays" } }), prisma.platform.findMany({ orderBy: { createdAt: "asc" } }), prisma.user.findMany({ orderBy: { createdAt: "asc" } })]);
-  const days = Array.isArray(setting?.value) ? setting.value.join(",") : "3,7,15,30";
+  const days = configuredReminderDays(setting?.value).join(",");
   const admin = user.role === "ADMIN";
   return <div className="mx-auto max-w-[1200px] space-y-4"><PageHeader title="系统设置" description={admin ? "提醒、平台、管理员和数据维护" : "当前账号仅可查看设置"} />
     <section className="panel p-5"><div className="mb-4"><h2 className="font-semibold">到期提醒</h2><p className="mt-1 text-[12px] text-[var(--muted-foreground)]">用英文逗号分隔多个提醒天数</p></div><ActionForm action={updateRemindersAction} className="flex max-w-[520px] items-end gap-2"><div className="flex-1"><label className="label" htmlFor="days">默认提醒天数</label><input className="input" id="days" name="days" defaultValue={days} disabled={!admin} /></div>{admin && <SubmitButton>保存</SubmitButton>}</ActionForm></section>

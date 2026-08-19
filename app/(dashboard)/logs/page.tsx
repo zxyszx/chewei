@@ -3,7 +3,7 @@ import { PageHeader } from "@/components/ui";
 import { prisma } from "@/lib/prisma";
 
 export const metadata = { title: "操作日志" };
-const actionNames: Record<string, string> = { SEED_DATABASE: "初始化数据", CREATE_SLOT: "创建车位", ADD_MEMBER: "添加车友", EXIT_MEMBER: "车友退出", MOVE_MEMBER: "车友换位", RENEW_MEMBER: "续费", VIEW_PASSWORD: "查看密码", UPDATE_SETTINGS: "修改设置", UPDATE_PLATFORM: "修改平台" };
+const actionNames: Record<string, string> = { SEED_DATABASE: "初始化数据", CREATE_SLOT: "创建车位", UPDATE_SLOT: "编辑车位", DELETE_SLOT: "删除车位", ADD_MEMBER: "添加车友", UPDATE_MEMBER: "编辑车友", DELETE_MEMBER: "删除车友", EXIT_MEMBER: "车友退出", MOVE_MEMBER: "车友换位", RENEW_MEMBER: "续费", VIEW_PASSWORD: "查看密码", UPDATE_SETTINGS: "修改设置", UPDATE_PLATFORM: "修改平台" };
 
 export default async function LogsPage() {
   const logs = await prisma.operationLog.findMany({ include: { user: true }, orderBy: { createdAt: "desc" }, take: 500 });

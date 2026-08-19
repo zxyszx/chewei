@@ -41,6 +41,7 @@ AUTH_SECRET=上一步生成的会话密钥
 ENCRYPTION_KEY=上一步生成的64位十六进制密钥
 ADMIN_USERNAME=admin
 ADMIN_PASSWORD=高强度管理员密码
+SESSION_COOKIE_SECURE=false
 APP_PORT=3000
 ```
 
@@ -80,7 +81,7 @@ docker compose --env-file .env.production logs --tail=100 app
 {"status":"ok","database":"connected"}
 ```
 
-然后访问 `http://服务器IP:3000`，使用 `.env.production` 中的管理员账号登录，验证新建车位、添加车友、续费和导出。
+然后访问 `http://服务器IP:3000`，使用 `.env.production` 中的管理员账号登录，验证新建车位、添加车友、续费和导出。该方式只用于临时测试；HTTP 无法保护登录密码，浏览器密码管理器也会显示安全警告。
 
 ## 6. 更新版本
 
@@ -120,4 +121,4 @@ parking.example.com {
 }
 ```
 
-启用反向代理后，把 `APP_PORT` 仅绑定本机，或通过防火墙关闭公网 `3000` 端口。
+启用反向代理后，将 `.env.production` 中的 `SESSION_COOKIE_SECURE` 改为 `true`，再重建应用容器。把 `APP_PORT` 仅绑定本机，或通过防火墙关闭公网 `3000` 端口。
