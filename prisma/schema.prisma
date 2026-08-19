@@ -46,7 +46,7 @@ model ParkingSlot {
   platformId        String
   platform          Platform        @relation(fields: [platformId], references: [id], onDelete: Restrict)
   slotNumber        Int
-  accountEmail      String
+  accountEmail      String          @unique
   encryptedPassword String
   cardLast4         String?
   billingDay        Int
@@ -59,7 +59,6 @@ model ParkingSlot {
   updatedAt         DateTime        @updatedAt
 
   @@unique([platformId, slotNumber])
-  @@index([accountEmail])
   @@map("parking_slots")
 }
 

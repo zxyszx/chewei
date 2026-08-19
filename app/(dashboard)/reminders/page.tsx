@@ -1,9 +1,9 @@
-import { addDays, format, startOfDay } from "date-fns";
+import { addDays, format } from "date-fns";
 import Link from "next/link";
 import { RenewButton } from "@/components/renew-button";
 import type { MemberItem } from "@/components/slot-manager";
 import { Badge, PageHeader } from "@/components/ui";
-import { expiryLabel } from "@/lib/dates";
+import { databaseToday, expiryLabel } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
 import { cn } from "@/lib/utils";
 
@@ -12,7 +12,7 @@ const tabs = [["all", "全部"], ["today", "今天"], ["3", "3 天内"], ["7", "
 
 export default async function RemindersPage({ searchParams }: { searchParams: Promise<{ range?: string }> }) {
   const range = (await searchParams).range || "all";
-  const now = startOfDay(new Date());
+  const now = databaseToday();
   const where = range === "expired" ? { lt: now } : range === "today" ? { gte: now, lt: addDays(now, 1) } : ["3", "7", "30"].includes(range) ? { gte: now, lte: addDays(now, Number(range)) } : undefined;
   const members = await prisma.member.findMany({ where: { status: "ACTIVE", ...(where ? { expireDate: where } : {}) }, include: { slot: { include: { platform: true } } }, orderBy: { expireDate: "asc" } });
   return <div className="mx-auto max-w-[1700px] space-y-4"><PageHeader title="到期提醒" description="到期状态根据车友日期自动计算" />

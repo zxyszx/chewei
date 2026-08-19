@@ -1,12 +1,26 @@
 import { compare } from "bcryptjs";
 import { randomBytes } from "node:crypto";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { hashToken } from "@/lib/crypto";
 
 const COOKIE_NAME = "parking_session";
 const SESSION_DAYS = 7;
+
+async function shouldUseSecureCookie() {
+  const configured = process.env.SESSION_COOKIE_SECURE;
+  if (configured === "true") return true;
+  if (configured === "false") return false;
+
+  const requestHeaders = await headers();
+  const forwardedProtocol = requestHeaders.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  if (forwardedProtocol) return forwardedProtocol === "https";
+
+  const origin = requestHeaders.get("origin");
+  if (origin) return origin.startsWith("https://");
+  return process.env.NODE_ENV === "production";
+}
 
 export async function getCurrentUser() {
   const token = (await cookies()).get(COOKIE_NAME)?.value;
@@ -40,7 +54,7 @@ export async function createSession(username: string, password: string) {
   (await cookies()).set(COOKIE_NAME, token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: await shouldUseSecureCookie(),
     path: "/",
     expires: expiresAt,
   });

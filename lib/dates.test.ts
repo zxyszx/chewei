@@ -1,5 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { expiryLabel, slotStatus } from "./dates";
+import { configuredReminderDays, databaseDate, databaseToday, expiryLabel, slotStatus } from "./dates";
+
+describe("database dates", () => {
+  it("normalizes local calendar days to UTC-backed database dates", () => {
+    const now = new Date(2026, 7, 20, 23, 30);
+    expect(databaseToday(now).toISOString()).toBe("2026-08-20T00:00:00.000Z");
+    expect(databaseDate("2026-09-19").toISOString()).toBe("2026-09-19T00:00:00.000Z");
+  });
+
+  it("normalizes configured reminder days", () => {
+    expect(configuredReminderDays([30, 3, "7", 3, -1, "bad"])).toEqual([3, 7, 30]);
+    expect(configuredReminderDays(null)).toEqual([3, 7, 15, 30]);
+  });
+});
 
 describe("slotStatus", () => {
   it("derives occupancy instead of accepting a manual label", () => {

@@ -1,11 +1,12 @@
 "use client";
 
-import { addMonths, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameDay, isSameMonth, startOfMonth, startOfWeek, subMonths } from "date-fns";
+import { addDays, addMonths, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameDay, isSameMonth, startOfMonth, startOfWeek, subMonths } from "date-fns";
 import { zhCN } from "date-fns/locale";
-import { CalendarDays, ChevronLeft, ChevronRight, Clipboard, Columns3, Copy, Eye, EyeOff, MoreHorizontal, Plus, Search, Table2, UserPlus, X } from "lucide-react";
-import { useMemo, useState, useTransition } from "react";
+import { CalendarDays, ChevronLeft, ChevronRight, Clipboard, Columns3, Copy, Eye, EyeOff, MoreHorizontal, Pencil, Plus, Search, Table2, Trash2, UserPlus, UserRoundX, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { addMemberAction, createSlotAction, exitMemberAction, moveMemberFormAction, renewMemberAction, revealPasswordAction } from "@/app/actions";
+import { addMemberAction, createSlotAction, deleteMemberAction, deleteSlotAction, exitMemberAction, moveMemberFormAction, renewMemberAction, revealPasswordAction, updateMemberAction, updateSlotAction } from "@/app/actions";
 import { ActionForm } from "@/components/action-form";
 import { FormDialog } from "@/components/form-dialog";
 import { Badge, SubmitButton } from "@/components/ui";
@@ -52,14 +53,46 @@ function NewSlotForm({ platforms, close }: { platforms: PlatformOption[]; close:
 
 function AddMemberForm({ slot, close }: { slot: SlotItem; close: () => void }) {
   const today = format(new Date(), "yyyy-MM-dd");
+  const [startDate, setStartDate] = useState(today);
+  const [expireDate, setExpireDate] = useState(format(addMonths(new Date(), 1), "yyyy-MM-dd"));
+  const setDuration = (months: number) => setExpireDate(format(addMonths(new Date(`${startDate}T00:00:00`), months), "yyyy-MM-dd"));
   return <ActionForm action={addMemberAction} onSuccess={close} className="grid gap-4 sm:grid-cols-2">
     <input type="hidden" name="slotId" value={slot.id} />
     <div><label className="label" htmlFor="nickname">昵称</label><input className="input" id="nickname" name="nickname" required /></div>
     <div><label className="label" htmlFor="contact">联系方式</label><input className="input" id="contact" name="contact" required /></div>
-    <div><label className="label" htmlFor="startDate">开始日期</label><input className="input" id="startDate" name="startDate" type="date" defaultValue={today} required /></div>
-    <div><label className="label" htmlFor="expireDate">到期日期</label><input className="input" id="expireDate" name="expireDate" type="date" defaultValue={format(addMonths(new Date(), 1), "yyyy-MM-dd")} required /></div>
+    <div><label className="label" htmlFor="startDate">开始日期</label><input className="input" id="startDate" name="startDate" type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} required /></div>
+    <div><label className="label" htmlFor="expireDate">到期日期</label><input className="input" id="expireDate" name="expireDate" type="date" value={expireDate} onChange={(event) => setExpireDate(event.target.value)} required /></div>
+    <div className="flex flex-wrap gap-2 sm:col-span-2" aria-label="快捷设置到期日期">{[1, 3, 6, 12].map((months) => <button key={months} type="button" className="btn min-h-8 px-2.5 text-[12px]" onClick={() => setDuration(months)}>+{months} 月</button>)}</div>
     <div className="sm:col-span-2"><label className="label" htmlFor="memberNote">备注</label><textarea className="textarea" id="memberNote" name="note" /></div>
     <div className="flex justify-end gap-2 border-t border-[var(--border)] pt-4 sm:col-span-2"><button type="button" className="btn" onClick={close}>取消</button><SubmitButton>添加车友</SubmitButton></div>
+  </ActionForm>;
+}
+
+function EditSlotForm({ slot, platforms, close }: { slot: SlotItem; platforms: PlatformOption[]; close: () => void }) {
+  return <ActionForm action={updateSlotAction} onSuccess={close} className="grid gap-4 sm:grid-cols-2">
+    <input type="hidden" name="slotId" value={slot.id} />
+    <div><label className="label" htmlFor="editPlatformId">平台</label><select className="select" id="editPlatformId" name="platformId" defaultValue={slot.platform.id}>{platforms.map((platform) => <option key={platform.id} value={platform.id}>{platform.name}</option>)}</select></div>
+    <div><label className="label" htmlFor="editSlotNumber">车号</label><input className="input" id="editSlotNumber" name="slotNumber" type="number" min="1" defaultValue={slot.slotNumber} required /></div>
+    <div className="sm:col-span-2"><label className="label" htmlFor="editAccountEmail">主账号 Gmail</label><input className="input" id="editAccountEmail" name="accountEmail" type="email" defaultValue={slot.accountEmail} required /></div>
+    <div className="sm:col-span-2"><label className="label" htmlFor="editPassword">更换密码</label><input className="input" id="editPassword" name="password" type="password" autoComplete="new-password" minLength={6} placeholder="留空则保持原密码" /></div>
+    <div><label className="label" htmlFor="editCardLast4">信用卡尾号</label><input className="input" id="editCardLast4" name="cardLast4" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} defaultValue={slot.cardLast4 || ""} /></div>
+    <div><label className="label" htmlFor="editBillingDay">每月续费日</label><input className="input" id="editBillingDay" name="billingDay" type="number" min="1" max="31" defaultValue={slot.billingDay} required /></div>
+    <div><label className="label" htmlFor="editCapacity">容量</label><input className="input" id="editCapacity" name="capacity" type="number" min="1" max="99" defaultValue={slot.capacity} required /></div>
+    <div><label className="label" htmlFor="editStatus">状态</label><select className="select" id="editStatus" name="status" defaultValue={slot.status}><option value="ACTIVE">正常</option><option value="PAUSED">暂停</option><option value="ABNORMAL">异常</option></select></div>
+    <div className="sm:col-span-2"><label className="label" htmlFor="editSlotNote">备注</label><textarea className="textarea" id="editSlotNote" name="note" defaultValue={slot.note || ""} /></div>
+    <div className="flex justify-end gap-2 border-t border-[var(--border)] pt-4 sm:col-span-2"><button type="button" className="btn" onClick={close}>取消</button><SubmitButton>保存修改</SubmitButton></div>
+  </ActionForm>;
+}
+
+function EditMemberForm({ member, close }: { member: MemberItem; close: () => void }) {
+  return <ActionForm action={updateMemberAction} onSuccess={close} className="grid gap-4 sm:grid-cols-2">
+    <input type="hidden" name="memberId" value={member.id} />
+    <div><label className="label" htmlFor="editNickname">昵称</label><input className="input" id="editNickname" name="nickname" defaultValue={member.nickname} required /></div>
+    <div><label className="label" htmlFor="editContact">联系方式</label><input className="input" id="editContact" name="contact" defaultValue={member.contact} required /></div>
+    <div><label className="label" htmlFor="editStartDate">开始日期</label><input className="input" id="editStartDate" name="startDate" type="date" defaultValue={member.startDate.slice(0, 10)} required /></div>
+    <div><label className="label" htmlFor="editExpireDate">到期日期</label><input className="input" id="editExpireDate" name="expireDate" type="date" defaultValue={member.expireDate.slice(0, 10)} required /></div>
+    <div className="sm:col-span-2"><label className="label" htmlFor="editMemberNote">备注</label><textarea className="textarea" id="editMemberNote" name="note" defaultValue={member.note || ""} /></div>
+    <div className="flex justify-end gap-2 border-t border-[var(--border)] pt-4 sm:col-span-2"><button type="button" className="btn" onClick={close}>取消</button><SubmitButton>保存修改</SubmitButton></div>
   </ActionForm>;
 }
 
@@ -70,11 +103,13 @@ function MoveMemberForm({ member, slots, close }: { member: MemberItem; slots: S
 
 export function RenewalForm({ member, close }: { member: MemberItem; close: () => void }) {
   const [months, setMonths] = useState(1);
+  const nextDate = format(addMonths(new Date(member.expireDate), months || 1), "yyyy.MM.dd");
+  const minimumCustomDate = format(addDays(new Date(member.expireDate), 1), "yyyy-MM-dd");
   return <ActionForm action={renewMemberAction} onSuccess={close} className="grid gap-4 sm:grid-cols-2">
     <input type="hidden" name="memberId" value={member.id} />
     <div className="sm:col-span-2 rounded-[6px] border border-[var(--border)] bg-[#fafbfc] p-3"><span className="text-[12px] text-[var(--muted-foreground)]">车友</span><strong className="ml-3">{member.nickname}</strong><span className="ml-3 text-[12px] text-[var(--muted-foreground)]">当前到期 {format(new Date(member.expireDate), "yyyy.MM.dd")}</span></div>
     <div><label className="label" htmlFor="months">续费周期</label><select className="select" id="months" name="months" value={months} onChange={(e) => setMonths(Number(e.target.value))}><option value="1">1 个月</option><option value="3">3 个月</option><option value="6">6 个月</option><option value="12">12 个月</option><option value="0">自定义日期</option></select></div>
-    {months === 0 && <div><label className="label" htmlFor="newExpireDate">新到期时间</label><input className="input" id="newExpireDate" name="newExpireDate" type="date" required /></div>}
+    {months === 0 ? <div><label className="label" htmlFor="newExpireDate">新到期时间</label><input className="input" id="newExpireDate" name="newExpireDate" type="date" min={minimumCustomDate} required /></div> : <div><span className="label">新到期时间</span><output className="input flex items-center tabular">{nextDate}</output></div>}
     <div><label className="label" htmlFor="amount">金额</label><input className="input" id="amount" name="amount" type="number" min="0" step="0.01" defaultValue="90" required /></div>
     <div><label className="label" htmlFor="paymentMethod">付款方式</label><select className="select" id="paymentMethod" name="paymentMethod" defaultValue="WECHAT"><option value="WECHAT">微信</option><option value="ALIPAY">支付宝</option><option value="CARD">信用卡</option><option value="CASH">现金</option><option value="OTHER">其他</option></select></div>
     <div className="sm:col-span-2"><label className="label" htmlFor="renewNote">备注</label><textarea className="textarea" id="renewNote" name="note" /></div>
@@ -82,42 +117,72 @@ export function RenewalForm({ member, close }: { member: MemberItem; close: () =
   </ActionForm>;
 }
 
-function SlotDrawer({ slot, close, addMember, renew, move }: { slot: SlotItem; close: () => void; addMember: () => void; renew: (member: MemberItem) => void; move: (member: MemberItem) => void }) {
+function SlotDrawer({ slot, close, addMember, editSlot, editMember, renew, move, canDelete }: { slot: SlotItem; close: () => void; addMember: () => void; editSlot: () => void; editMember: (member: MemberItem) => void; renew: (member: MemberItem) => void; move: (member: MemberItem) => void; canDelete: boolean }) {
   const activeMembers = slot.members.filter((m) => m.status === "ACTIVE");
   const status = slotStatus(slot.capacity, activeMembers.length, slot.status);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [pending, startTransition] = useTransition();
+  const drawer = useRef<HTMLElement>(null);
+  const closeButton = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    closeButton.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") { close(); return; }
+      if (event.key !== "Tab") return;
+      const focusable = [...(drawer.current?.querySelectorAll<HTMLElement>("button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])") || [])];
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable.at(-1);
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => { window.removeEventListener("keydown", onKeyDown); previous?.focus(); };
+  }, [close]);
   const reveal = () => startTransition(async () => { const result = await revealPasswordAction(slot.id); if (result.ok && result.data?.password) { setPassword(result.data.password); setShowPassword(true); toast.success(result.message); } else toast.error(result.message); });
   const copy = async (value: string, message: string) => { await navigator.clipboard.writeText(value); toast.success(message); };
   const exit = (member: MemberItem) => {
     if (!window.confirm(`确认将 ${member.nickname} 标记为退出？`)) return;
     startTransition(async () => { const result = await exitMemberAction(member.id); if (result.ok) toast.success(result.message); else toast.error(result.message); });
   };
-  return <div className="fixed inset-0 z-[70] bg-black/20" onMouseDown={close}><aside className="absolute inset-y-0 right-0 flex w-full max-w-[500px] flex-col border-l border-[var(--border)] bg-white shadow-2xl" onMouseDown={(e) => e.stopPropagation()} aria-label={`车位 ${slot.slotNumber} 详情`}>
-    <div className="flex h-[58px] items-center justify-between border-b border-[var(--border)] px-5"><div><strong className="text-[15px]">车位 #{slot.slotNumber} 详情</strong><span className="ml-3 text-[11px] text-[#8a94a3]">ID: {publicId(slot.platform.slug, slot.slotNumber)}</span></div><button className="btn icon-btn" onClick={close} aria-label="关闭详情"><X size={17} /></button></div>
+  const removeSlot = () => {
+    if (!window.confirm(`确认删除 ${slot.platform.name} #${slot.slotNumber}？此操作不可撤销。`)) return;
+    startTransition(async () => { const result = await deleteSlotAction(slot.id); if (result.ok) { toast.success(result.message); close(); } else toast.error(result.message); });
+  };
+  const removeMember = (member: MemberItem) => {
+    if (!window.confirm(`确认永久删除 ${member.nickname}？此操作不可撤销。`)) return;
+    startTransition(async () => { const result = await deleteMemberAction(member.id); if (result.ok) toast.success(result.message); else toast.error(result.message); });
+  };
+  return <div className="fixed inset-0 z-[70] bg-black/30" onMouseDown={close}><aside ref={drawer} role="dialog" aria-modal="true" className="absolute inset-y-0 right-0 flex w-full max-w-[500px] flex-col border-l border-[var(--border)] bg-white shadow-2xl" onMouseDown={(e) => e.stopPropagation()} aria-label={`车位 ${slot.slotNumber} 详情`}>
+    <div className="flex min-h-[58px] items-center justify-between gap-3 border-b border-[var(--border)] px-5"><div className="min-w-0"><strong className="text-[15px]">车位 #{slot.slotNumber} 详情</strong><span className="ml-3 text-[11px] text-[#8a94a3]">ID: {publicId(slot.platform.slug, slot.slotNumber)}</span></div><div className="flex items-center gap-1"><button className="btn icon-btn" onClick={editSlot} aria-label="编辑车位" title="编辑车位"><Pencil size={16} /></button>{canDelete && <button className="btn btn-danger icon-btn" disabled={pending} onClick={removeSlot} aria-label="删除车位" title="删除车位"><Trash2 size={16} /></button>}<button ref={closeButton} className="btn icon-btn" onClick={close} aria-label="关闭详情" title="关闭详情"><X size={17} /></button></div></div>
     <div className="min-h-0 flex-1 overflow-y-auto">
       <section className="border-b border-[var(--border)] px-5 py-5"><div className="mb-5 flex items-center gap-3"><div className="grid size-9 place-items-center rounded-[6px] bg-[#f2f4f7] font-bold">{slot.platform.name[0]}</div><strong className="text-[16px]">{slot.platform.name}</strong><Badge tone={toneForSlot(status)}>{status}</Badge><span className="text-[13px] text-[var(--muted-foreground)]">{activeMembers.length}/{slot.capacity}</span></div>
         <dl className="grid grid-cols-[112px_minmax(0,1fr)] gap-y-4 text-[13px]"><dt className="text-[var(--muted-foreground)]">主账号</dt><dd className="flex min-w-0 items-center gap-2"><span className="truncate">{slot.accountEmail}</span><button onClick={() => copy(slot.accountEmail, "账号已复制")} className="text-[#6d7787]" aria-label="复制账号" title="复制账号"><Copy size={15} /></button></dd><dt className="text-[var(--muted-foreground)]">密码</dt><dd className="flex items-center gap-2"><span className="min-w-[108px] font-mono">{showPassword ? password : "••••••••••"}</span>{showPassword ? <button onClick={() => setShowPassword(false)} aria-label="隐藏密码"><EyeOff size={15} /></button> : <button onClick={reveal} disabled={pending} aria-label="查看密码"><Eye size={15} /></button>}{showPassword && <button onClick={() => copy(password, "密码已复制")} aria-label="复制密码"><Copy size={15} /></button>}</dd><dt className="text-[var(--muted-foreground)]">信用卡尾号</dt><dd>{slot.cardLast4 ? `•••• ${slot.cardLast4}` : "-"}</dd><dt className="text-[var(--muted-foreground)]">续费日期</dt><dd>每月 {slot.billingDay} 日</dd><dt className="text-[var(--muted-foreground)]">备注</dt><dd className="whitespace-pre-wrap">{slot.note || "-"}</dd></dl>
       </section>
       <section className="border-b border-[var(--border)] px-5 py-5"><div className="mb-3 flex items-center justify-between"><h3 className="font-semibold">车友列表 <span className="font-normal text-[var(--muted-foreground)]">({activeMembers.length}/{slot.capacity})</span></h3><button className="btn min-h-8 px-2.5 text-[12px] text-[#2563eb]" onClick={addMember} disabled={activeMembers.length >= slot.capacity}><UserPlus size={14} />添加车友</button></div>
-        <div className="overflow-hidden rounded-[6px] border border-[var(--border)]">{activeMembers.length ? activeMembers.map((member) => <div key={member.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 border-b border-[var(--border)] p-3 last:border-0"><div className="min-w-0"><div className="flex items-center gap-2"><strong className="truncate text-[13px]">{member.nickname}</strong><Expiry value={member.expireDate} /></div><p className="mt-1 truncate text-[12px] text-[var(--muted-foreground)]">{member.contact} · {format(new Date(member.expireDate), "yyyy.MM.dd")}</p></div><div className="flex items-center gap-1"><button className="btn min-h-8 px-2 text-[12px]" onClick={() => renew(member)}>续费</button><button className="btn min-h-8 px-2 text-[12px]" onClick={() => move(member)}>换位</button><button className="btn icon-btn size-8" onClick={() => exit(member)} aria-label={`将 ${member.nickname} 标记退出`} title="标记退出"><MoreHorizontal size={15} /></button></div></div>) : <div className="empty py-8">暂无在位车友</div>}</div>
+        <div className="overflow-hidden rounded-[6px] border border-[var(--border)]">{activeMembers.length ? activeMembers.map((member) => <div key={member.id} className="grid gap-3 border-b border-[var(--border)] p-3 last:border-0 sm:grid-cols-[minmax(0,1fr)_auto]"><div className="min-w-0"><div className="flex items-center gap-2"><strong className="truncate text-[13px]">{member.nickname}</strong><Expiry value={member.expireDate} /></div><p className="mt-1 truncate text-[12px] text-[var(--muted-foreground)]">{member.contact} · {format(new Date(member.startDate), "yyyy.MM.dd")} 至 {format(new Date(member.expireDate), "yyyy.MM.dd")}</p></div><div className="flex flex-wrap items-center gap-1"><button className="btn min-h-8 px-2 text-[12px]" onClick={() => renew(member)}>续费</button><button className="btn min-h-8 px-2 text-[12px]" onClick={() => move(member)}>换位</button><button className="btn icon-btn size-8" onClick={() => copy(member.contact, "联系方式已复制")} aria-label={`复制 ${member.nickname} 的联系方式`} title="复制联系方式"><Copy size={14} /></button><button className="btn icon-btn size-8" onClick={() => editMember(member)} aria-label={`编辑 ${member.nickname}`} title="编辑车友"><Pencil size={14} /></button><button className="btn icon-btn size-8" disabled={pending} onClick={() => exit(member)} aria-label={`将 ${member.nickname} 标记退出`} title="标记退出"><UserRoundX size={15} /></button>{canDelete && <button className="btn btn-danger icon-btn size-8" disabled={pending} onClick={() => removeMember(member)} aria-label={`删除 ${member.nickname}`} title="删除车友"><Trash2 size={14} /></button>}</div></div>) : <div className="empty py-8">暂无在位车友</div>}</div>
       </section>
       <section className="px-5 py-5"><div className="mb-3 flex items-center justify-between"><h3 className="font-semibold">续费记录</h3><span className="text-[12px] text-[var(--muted-foreground)]">最近 {slot.renewals.length} 条</span></div><div className="overflow-hidden rounded-[6px] border border-[var(--border)]">{slot.renewals.length ? slot.renewals.slice(0, 5).map((record) => <div key={record.id} className="grid grid-cols-[1fr_auto] border-b border-[var(--border)] px-3 py-2.5 text-[12px] last:border-0"><div><strong>{record.member.nickname}</strong><span className="ml-2 text-[var(--muted-foreground)]">{format(new Date(record.createdAt), "yyyy.MM.dd")}</span></div><span className="tabular">¥ {Number(record.amount).toFixed(2)}</span></div>) : <div className="empty py-8">暂无续费记录</div>}</div></section>
     </div>
   </aside></div>;
 }
 
-export function SlotManager({ slots, platforms, initialOpen }: { slots: SlotItem[]; platforms: PlatformOption[]; initialOpen?: string }) {
+export function SlotManager({ slots, platforms, initialOpen, closeHref = "/slots", canDelete = false }: { slots: SlotItem[]; platforms: PlatformOption[]; initialOpen?: string; closeHref?: string; canDelete?: boolean }) {
+  const router = useRouter();
   const [view, setView] = useState<"table" | "board" | "calendar">("table");
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedId, setSelectedId] = useState(initialOpen || "");
   const [newSlot, setNewSlot] = useState(false);
+  const [editSlot, setEditSlot] = useState(false);
   const [addMember, setAddMember] = useState(false);
+  const [editMember, setEditMember] = useState<MemberItem | null>(null);
   const [renewMember, setRenewMember] = useState<MemberItem | null>(null);
   const [moveMember, setMoveMember] = useState<MemberItem | null>(null);
   const [month, setMonth] = useState(new Date());
+  const closeSelected = useCallback(() => { setSelectedId(""); router.replace(closeHref, { scroll: false }); }, [closeHref, router]);
   const selected = slots.find((slot) => slot.id === selectedId);
   const filtered = useMemo(() => slots.filter((slot) => {
     const active = slot.members.filter((m) => m.status === "ACTIVE").length;
@@ -129,14 +194,16 @@ export function SlotManager({ slots, platforms, initialOpen }: { slots: SlotItem
   return <>
     <div className="panel overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3"><div className="flex items-center gap-3"><strong className="text-[15px]">车位列表 <span className="font-normal text-[var(--muted-foreground)]">({filtered.length})</span></strong><div className="flex rounded-[6px] border border-[var(--border)] bg-[#fafbfc] p-0.5">{viewOptions.map(({ value, icon: Icon, label }) => <button key={value} onClick={() => setView(value)} className={cn("flex min-h-8 items-center gap-1.5 rounded-[4px] px-2.5 text-[12px] text-[#657080]", view === value && "bg-white text-[#2457bd] shadow-sm")}><Icon size={14} />{label}</button>)}</div></div><button className="btn btn-primary" onClick={() => setNewSlot(true)}><Plus size={16} />新建车位</button></div>
-      <div className="toolbar border-b border-[var(--border)] px-4 py-3"><div className="flex min-w-[240px] flex-1 items-center gap-2 rounded-[6px] border border-[var(--border-strong)] bg-white px-3"><Search size={15} className="text-[#7b8493]" /><input value={query} onChange={(e) => setQuery(e.target.value)} className="h-9 min-w-0 flex-1 outline-none" placeholder="搜索车位、账号、车友..." /></div><select className="select w-auto min-w-[120px]" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}><option value="all">全部状态</option>{["满", "缺1", "缺2", "缺3", "缺4", "空闲", "暂停", "异常"].map((s) => <option key={s}>{s}</option>)}</select><a className="btn" href="/api/export/slots"><Clipboard size={15} />导出</a></div>
+      <div className="toolbar border-b border-[var(--border)] px-4 py-3"><div className="flex min-w-[240px] flex-1 items-center gap-2 rounded-[6px] border border-[var(--border-strong)] bg-white px-3"><Search size={15} className="text-[#7b8493]" /><input aria-label="搜索车位、账号或车友" value={query} onChange={(e) => setQuery(e.target.value)} className="h-9 min-w-0 flex-1 outline-none" placeholder="搜索车位、账号、车友..." /></div><select aria-label="车位状态" className="select w-auto min-w-[120px]" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}><option value="all">全部状态</option>{["满", "缺1", "缺2", "缺3", "缺4", "空闲", "暂停", "异常"].map((s) => <option key={s}>{s}</option>)}</select><a className="btn" href="/api/export/slots"><Clipboard size={15} />导出</a></div>
       {view === "table" && <div className="data-wrap"><table className="data-table"><thead><tr><th>车号</th><th>平台</th><th>主账号 Gmail</th><th>状态</th><th>容量</th><th>续费日</th><th>卡尾号</th><th>最近到期</th><th>备注</th><th aria-label="操作" /></tr></thead><tbody>{filtered.map((slot) => { const active = slot.members.filter((m) => m.status === "ACTIVE"); const status = slotStatus(slot.capacity, active.length, slot.status); const next = active.toSorted((a, b) => +new Date(a.expireDate) - +new Date(b.expireDate))[0]; return <tr key={slot.id} onClick={() => setSelectedId(slot.id)} className="cursor-pointer"><td className="font-semibold tabular">#{slot.slotNumber}</td><td>{slot.platform.name}</td><td className="text-[#2457bd]">{slot.accountEmail}</td><td><Badge tone={toneForSlot(status)}>{status}</Badge></td><td className="tabular">{active.length}/{slot.capacity}</td><td>每月 {slot.billingDay} 日</td><td>{slot.cardLast4 || "-"}</td><td>{next ? <div className="flex items-center gap-2"><span className="tabular">{format(new Date(next.expireDate), "yyyy.MM.dd")}</span><Expiry value={next.expireDate} /></div> : "-"}</td><td className="max-w-[150px] truncate text-[var(--muted-foreground)]">{slot.note || "-"}</td><td><button className="btn icon-btn size-8" aria-label={`查看车位 ${slot.slotNumber}`}><MoreHorizontal size={15} /></button></td></tr>; })}</tbody></table>{!filtered.length && <div className="empty">没有符合条件的车位</div>}</div>}
-      {view === "board" && <div className="grid min-h-[520px] auto-cols-[260px] grid-flow-col gap-3 overflow-x-auto bg-[#fafbfc] p-4">{["满", "缺1", "缺2", "缺3", "缺4", "空闲"].map((group) => { const groupSlots = filtered.filter((slot) => slotStatus(slot.capacity, slot.members.filter((m) => m.status === "ACTIVE").length, slot.status) === group); return <section key={group} className="w-[260px]"><div className="mb-2 flex items-center justify-between px-1"><Badge tone={toneForSlot(group)}>{group}</Badge><span className="text-[12px] text-[var(--muted-foreground)]">{groupSlots.length}</span></div><div className="space-y-2">{groupSlots.map((slot) => { const active = slot.members.filter((m) => m.status === "ACTIVE"); const next = active.toSorted((a, b) => +new Date(a.expireDate) - +new Date(b.expireDate))[0]; return <button key={slot.id} onClick={() => setSelectedId(slot.id)} className="panel w-full p-3 text-left transition-colors hover:border-[#aab9d1]"><div className="flex items-center justify-between"><strong>{slot.platform.name} #{slot.slotNumber}</strong><span className="text-[12px] tabular text-[var(--muted-foreground)]">{active.length}/{slot.capacity}</span></div><p className="mt-2 truncate text-[12px] text-[#2457bd]">{slot.accountEmail}</p><p className="mt-3 text-[11px] text-[var(--muted-foreground)]">最近到期：{next ? format(new Date(next.expireDate), "MM.dd") : "-"}</p></button>; })}</div></section>; })}</div>}
+      {view === "board" && <div className="grid min-h-[520px] auto-cols-[260px] grid-flow-col gap-3 overflow-x-auto bg-[#fafbfc] p-4">{["满", "缺1", "缺2", "缺3", "缺4", "空闲", "暂停", "异常"].map((group) => { const groupSlots = filtered.filter((slot) => slotStatus(slot.capacity, slot.members.filter((m) => m.status === "ACTIVE").length, slot.status) === group); return <section key={group} className="w-[260px]"><div className="mb-2 flex items-center justify-between px-1"><Badge tone={toneForSlot(group)}>{group}</Badge><span className="text-[12px] text-[var(--muted-foreground)]">{groupSlots.length}</span></div><div className="space-y-2">{groupSlots.map((slot) => { const active = slot.members.filter((m) => m.status === "ACTIVE"); const next = active.toSorted((a, b) => +new Date(a.expireDate) - +new Date(b.expireDate))[0]; return <button key={slot.id} onClick={() => setSelectedId(slot.id)} className="panel w-full p-3 text-left transition-colors hover:border-[#aab9d1]"><div className="flex items-center justify-between"><strong>{slot.platform.name} #{slot.slotNumber}</strong><span className="text-[12px] tabular text-[var(--muted-foreground)]">{active.length}/{slot.capacity}</span></div><p className="mt-2 truncate text-[12px] text-[#2457bd]">{slot.accountEmail}</p><p className="mt-3 text-[11px] text-[var(--muted-foreground)]">最近到期：{next ? format(new Date(next.expireDate), "MM.dd") : "-"}</p></button>; })}</div></section>; })}</div>}
       {view === "calendar" && <div className="p-4"><div className="mb-3 flex items-center justify-between"><button className="btn icon-btn" onClick={() => setMonth(subMonths(month, 1))} aria-label="上个月"><ChevronLeft size={16} /></button><strong>{format(month, "yyyy 年 M 月", { locale: zhCN })}</strong><button className="btn icon-btn" onClick={() => setMonth(addMonths(month, 1))} aria-label="下个月"><ChevronRight size={16} /></button></div><div className="grid grid-cols-7 border-l border-t border-[var(--border)]">{["一", "二", "三", "四", "五", "六", "日"].map((day) => <div key={day} className="border-b border-r border-[var(--border)] bg-[#fafbfc] p-2 text-center text-[11px] text-[var(--muted-foreground)]">{day}</div>)}{calendarDays.map((day) => { const dayEvents = events.filter((event) => isSameDay(event.date, day)); return <div key={day.toISOString()} className={cn("min-h-[110px] border-b border-r border-[var(--border)] p-1.5", !isSameMonth(day, month) && "bg-[#fafbfc] text-[#a2a9b5]")}><div className="mb-1 text-[11px] tabular">{format(day, "d")}</div><div className="space-y-1">{dayEvents.slice(0, 3).map(({ slot, member }) => <button key={member.id} onClick={() => setSelectedId(slot.id)} className="block w-full truncate rounded-[4px] bg-[#eef4ff] px-1.5 py-1 text-left text-[10px] text-[#2457bd]">{slot.platform.name} #{slot.slotNumber} · {member.nickname}</button>)}{dayEvents.length > 3 && <span className="px-1 text-[10px] text-[var(--muted-foreground)]">+{dayEvents.length - 3} 条</span>}</div></div>; })}</div></div>}
     </div>
-    {selected && <SlotDrawer slot={selected} close={() => setSelectedId("")} addMember={() => setAddMember(true)} renew={setRenewMember} move={setMoveMember} />}
+    {selected && <SlotDrawer slot={selected} close={closeSelected} addMember={() => setAddMember(true)} editSlot={() => setEditSlot(true)} editMember={setEditMember} renew={setRenewMember} move={setMoveMember} canDelete={canDelete} />}
     <FormDialog open={newSlot} title="新建车位" description="平台默认容量可按实际套餐调整" onClose={() => setNewSlot(false)}><NewSlotForm platforms={platforms} close={() => setNewSlot(false)} /></FormDialog>
+    {selected && <FormDialog open={editSlot} title={`编辑车位 · ${selected.platform.name} #${selected.slotNumber}`} description="留空密码字段即可保留原密码" onClose={() => setEditSlot(false)}><EditSlotForm slot={selected} platforms={platforms} close={() => setEditSlot(false)} /></FormDialog>}
     {selected && <FormDialog open={addMember} title={`添加车友 · ${selected.platform.name} #${selected.slotNumber}`} description={`当前 ${selected.members.filter((m) => m.status === "ACTIVE").length}/${selected.capacity}`} onClose={() => setAddMember(false)}><AddMemberForm slot={selected} close={() => setAddMember(false)} /></FormDialog>}
+    {editMember && <FormDialog open title={`编辑车友 · ${editMember.nickname}`} description="修改基础信息不会覆盖续费历史" onClose={() => setEditMember(null)}><EditMemberForm member={editMember} close={() => setEditMember(null)} /></FormDialog>}
     {renewMember && <FormDialog open title="续费" description="确认后将保留原到期时间并新增历史记录" onClose={() => setRenewMember(null)}><RenewalForm member={renewMember} close={() => setRenewMember(null)} /></FormDialog>}
     {moveMember && <FormDialog open title={`更换车位 · ${moveMember.nickname}`} description="续费历史不会随换位改变" onClose={() => setMoveMember(null)}><MoveMemberForm member={moveMember} slots={slots} close={() => setMoveMember(null)} /></FormDialog>}
   </>;

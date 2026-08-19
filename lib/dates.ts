@@ -1,5 +1,21 @@
 import { differenceInCalendarDays, endOfMonth, startOfMonth } from "date-fns";
 
+export const DEFAULT_REMINDER_DAYS = [3, 7, 15, 30];
+
+export function databaseToday(now = new Date()) {
+  return new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+}
+
+export function databaseDate(value: string) {
+  return new Date(`${value}T00:00:00.000Z`);
+}
+
+export function configuredReminderDays(value: unknown) {
+  if (!Array.isArray(value)) return DEFAULT_REMINDER_DAYS;
+  const days = [...new Set(value.map(Number).filter((day) => Number.isInteger(day) && day > 0 && day <= 365))].sort((a, b) => a - b);
+  return days.length ? days : DEFAULT_REMINDER_DAYS;
+}
+
 export function dayDiff(date: Date, now = new Date()) {
   return differenceInCalendarDays(date, now);
 }

@@ -50,6 +50,7 @@ npm run dev
 | `ENCRYPTION_KEY` | 账号密码 AES-256-GCM 密钥，64 位十六进制 |
 | `ADMIN_USERNAME` | Seed 创建的管理员账号 |
 | `ADMIN_PASSWORD` | Seed 创建的管理员密码 |
+| `SESSION_COOKIE_SECURE` | 直接使用 HTTP IP 测试时设为 `false`；启用 HTTPS 后设为 `true` |
 | `TZ` | 时区，推荐 `Asia/Shanghai` |
 
 生成生产密钥：

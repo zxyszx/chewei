@@ -2,19 +2,20 @@ import { addDays, format, startOfMonth, subMonths } from "date-fns";
 import { CalendarClock, CircleParking, Coins, UsersRound } from "lucide-react";
 import { AnalyticsCharts } from "@/components/analytics-charts";
 import { PageHeader } from "@/components/ui";
-import { monthRange, slotStatus } from "@/lib/dates";
+import { databaseToday, monthRange, slotStatus } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
 
 export const metadata = { title: "数据统计" };
 
 export default async function AnalyticsPage() {
   const now = new Date();
+  const today = databaseToday(now);
   const [platforms, members, renewals, expiring7, expiring30] = await Promise.all([
     prisma.platform.findMany({ include: { parkingSlots: { include: { members: { where: { status: "ACTIVE" } } } } }, orderBy: { createdAt: "asc" } }),
     prisma.member.count({ where: { status: "ACTIVE" } }),
     prisma.renewal.findMany({ where: { createdAt: { gte: startOfMonth(subMonths(now, 5)) } }, orderBy: { createdAt: "asc" } }),
-    prisma.member.count({ where: { status: "ACTIVE", expireDate: { gte: now, lte: addDays(now, 7) } } }),
-    prisma.member.count({ where: { status: "ACTIVE", expireDate: { gte: now, lte: addDays(now, 30) } } }),
+    prisma.member.count({ where: { status: "ACTIVE", expireDate: { gte: today, lte: addDays(today, 7) } } }),
+    prisma.member.count({ where: { status: "ACTIVE", expireDate: { gte: today, lte: addDays(today, 30) } } }),
   ]);
   const slots = platforms.flatMap((p) => p.parkingSlots);
   const currentRenewals = renewals.filter((r) => r.createdAt >= monthRange(now).gte);
