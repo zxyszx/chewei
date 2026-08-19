@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?请在 .env.production 中设置 POSTGRES_PASSWORD}
       TZ: Asia/Shanghai
     volumes:
-      - parking_postgres_data:/var/lib/postgresql/data
+      - parking_postgres_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U parking -d parking_manager"]
       interval: 5s
