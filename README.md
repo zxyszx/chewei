@@ -12,7 +12,7 @@
 - 账号管理、续费记录、数据统计和操作日志
 - 车位 CSV、续费 Excel、全量 JSON 备份
 - `admin` / `operator` 后端权限预留
-- Docker Compose + PostgreSQL 一键部署
+- Docker Compose + PostgreSQL 一键部署、备份、更新与回滚
 
 ## 技术栈
 
@@ -69,4 +69,17 @@ npm test
 npm run build
 ```
 
-生产部署请按 [DEPLOYMENT.md](./DEPLOYMENT.md) 操作。
+## 一键部署
+
+```bash
+chmod +x install.sh
+./install.sh install
+```
+
+脚本提供三种 Web 模式：自动 Nginx + SSL、1Panel/宝塔/已有 Nginx 反代、仅 HTTP 测试。已安装环境更新时执行：
+
+```bash
+./install.sh update
+```
+
+生产部署、备份和回滚说明见 [DEPLOYMENT.md](./DEPLOYMENT.md)。
