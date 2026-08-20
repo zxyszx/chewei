@@ -2,6 +2,31 @@
 
 本文以 Ubuntu / Debian 服务器和 Docker Compose 为例。数据库只在容器网络内开放，不暴露公网端口。
 
+## 推荐：一键脚本
+
+```bash
+chmod +x install.sh
+./install.sh install
+```
+
+首次安装会生成生产密钥、启动服务，并提示选择 Web 模式：
+
+1. 自动配置 Nginx + SSL：适合没有现有 Web 面板且 `80/443` 未占用的服务器。
+2. 1Panel / 宝塔 / 已有 Nginx 反代：应用仅绑定 `127.0.0.1:3000`，脚本生成 `reverse-proxy.conf` 参考文件。
+3. 仅 HTTP 测试：直接开放 `3000`，不适合正式公网使用。
+
+常用维护命令：
+
+```bash
+./install.sh update
+./install.sh backup
+./install.sh status
+./install.sh logs
+./install.sh web 2 parking.example.com
+```
+
+`update` 会先生成并校验 PostgreSQL 备份，再构建镜像、执行迁移和健康检查。失败时会恢复旧应用镜像，并保留数据库备份供明确回滚。
+
 ## 1. 准备服务器
 
 安装 Docker Engine 和 Compose Plugin，并确认：

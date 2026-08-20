@@ -59,7 +59,23 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .btn-primary { background: var(--accent); color: white; border-color: var(--accent); box-shadow: 0 1px 2px rgb(37 99 235 / 18%); }
 .btn-primary:hover { background: #1d4ed8; border-color: #1d4ed8; }
 .btn-danger { color: var(--danger); border-color: #f1c7c7; background: #fffafa; }
+.btn-danger-solid { color: #fff; border-color: #c93636; background: #c93636; box-shadow: 0 1px 2px rgb(201 54 54 / 18%); }
+.btn-danger-solid:hover { color: #fff; border-color: #ad2f2f; background: #ad2f2f; }
+.btn-warning-solid { color: #fff; border-color: #b45309; background: #b45309; box-shadow: 0 1px 2px rgb(180 83 9 / 18%); }
+.btn-warning-solid:hover { color: #fff; border-color: #92400e; background: #92400e; }
 .icon-btn { width: 38px; height: 38px; padding: 0; }
+.confirm-icon { display: inline-grid; width: 40px; height: 40px; flex: 0 0 40px; place-items: center; border-radius: 50%; }
+.confirm-icon-danger { color: var(--danger); background: var(--danger-soft); }
+.confirm-icon-warning { color: var(--warning); background: var(--warning-soft); }
+.seat-button { display: inline-grid; width: 34px; height: 34px; flex: 0 0 34px; place-items: center; border: 1px solid var(--border-strong); border-radius: 50%; font-size: 11px; font-weight: 700; transition: border-color 160ms, background 160ms, color 160ms, box-shadow 160ms; }
+.seat-button-full { color: #fff; border-color: #0b9b6c; background: #0fad79; }
+.seat-button-full:hover { border-color: #087a55; background: #0b966a; box-shadow: 0 0 0 3px rgb(8 122 85 / 10%); }
+.seat-button-warning { color: #fff; border-color: #e8720b; background: #f18016; }
+.seat-button-warning:hover { border-color: #c45e08; background: #d96a0c; box-shadow: 0 0 0 3px rgb(180 83 9 / 10%); }
+.seat-button-danger { color: #fff; border-color: #d63b3b; background: #e54848; }
+.seat-button-danger:hover { border-color: #b72f2f; background: #c93636; box-shadow: 0 0 0 3px rgb(201 54 54 / 10%); }
+.seat-button-empty { color: #7a8492; border-style: dashed; background: #fff; }
+.seat-button-empty:hover { color: var(--accent); border-color: #80a6ec; background: #f5f8ff; }
 .badge { display: inline-flex; align-items: center; gap: 4px; min-height: 23px; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; }
 .badge-success { color: var(--success); background: var(--success-soft); }
 .badge-danger { color: var(--danger); background: var(--danger-soft); }

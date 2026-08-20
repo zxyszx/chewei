@@ -25,5 +25,5 @@ export default async function DashboardLayout({ children }: { children: React.Re
     ]),
     ...members.map((member) => ({ id: member.id, type: "车友" as const, title: member.nickname, subtitle: `${member.contact} · ${member.slot.platform.name} #${member.slot.slotNumber}`, href: `/members?q=${encodeURIComponent(member.contact)}` })),
   ];
-  return <AppShell platforms={platformRows.map((p) => ({ id: p.id, name: p.name, slug: p.slug, count: p._count.parkingSlots }))} reminderCount={reminderCount} username={user.username} role={user.role} searchItems={searchItems}>{children}</AppShell>;
+  return <AppShell platforms={platformRows.map((p) => ({ id: p.id, name: p.name, slug: p.slug, icon: p.icon, count: p._count.parkingSlots }))} reminderCount={reminderCount} username={user.username} role={user.role} searchItems={searchItems}>{children}</AppShell>;
 }
