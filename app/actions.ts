@@ -9,6 +9,7 @@ import { createSession, destroySession, requireAdmin, requireUser } from "@/lib/
 import { decryptSecret, encryptSecret } from "@/lib/crypto";
 import { databaseDate } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
+import { firstAvailableSeat } from "@/lib/slots";
 
 export type ActionState = { ok: boolean; message: string; data?: Record<string, string> };
 const initialError: ActionState = { ok: false, message: "提交内容有误，请检查后重试" };
@@ -95,10 +96,14 @@ export async function updateSlotAction(_state: ActionState, formData: FormData):
 export async function deleteSlotAction(slotId: string): Promise<ActionState> {
   const user = await requireAdmin();
   try {
-    const slot = await prisma.parkingSlot.findUniqueOrThrow({ where: { id: slotId }, include: { _count: { select: { members: true, renewals: true } } } });
-    if (slot._count.members || slot._count.renewals) return { ok: false, message: "该车位已有车友或续费历史，不能删除；可以改为暂停" };
-    await prisma.parkingSlot.delete({ where: { id: slot.id } });
-    await log(user.id, "DELETE_SLOT", "parking_slot", slot.id, { slotNumber: slot.slotNumber, email: slot.accountEmail });
+    const ip = await clientIp();
+    const slot = await prisma.$transaction(async (tx) => {
+      const current = await tx.parkingSlot.findUniqueOrThrow({ where: { id: slotId }, include: { _count: { select: { members: true, renewals: true } } } });
+      if (current._count.members || current._count.renewals) throw new Error("该车位已有车友或续费历史，不能删除；可以改为暂停");
+      await tx.parkingSlot.delete({ where: { id: current.id } });
+      await tx.operationLog.create({ data: { userId: user.id, action: "DELETE_SLOT", resourceType: "parking_slot", resourceId: current.id, detail: { slotNumber: current.slotNumber, email: current.accountEmail }, ip } });
+      return current;
+    });
     revalidatePath("/");
     return { ok: true, message: `车位 #${slot.slotNumber} 已删除` };
   } catch (error) {
@@ -109,6 +114,7 @@ export async function deleteSlotAction(slotId: string): Promise<ActionState> {
 const memberFields = z.object({
   slotId: z.string().min(1), nickname: z.string().min(1).max(80), contact: z.string().min(1).max(160),
   startDate: z.string().date(), expireDate: z.string().date(), note: z.string().max(2000).optional(),
+  seatNumber: z.preprocess((value) => value === "" || value == null ? undefined : Number(value), z.number().int().positive().optional()),
 });
 
 function validateMemberDates(data: { startDate: string; expireDate: string }, context: z.RefinementCtx) {
@@ -122,12 +128,18 @@ export async function addMemberAction(_state: ActionState, formData: FormData): 
   const parsed = memberSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message || initialError.message };
   try {
-    const member = await prisma.$transaction(async (tx) => {
-      const slot = await tx.parkingSlot.findUniqueOrThrow({ where: { id: parsed.data.slotId }, include: { _count: { select: { members: { where: { status: "ACTIVE" } } } } } });
-      if (slot._count.members >= slot.capacity) throw new Error(`当前车位已满 ${slot._count.members}/${slot.capacity}`);
-      return tx.member.create({ data: { ...parsed.data, startDate: date(parsed.data.startDate), expireDate: date(parsed.data.expireDate) } });
+    const ip = await clientIp();
+    await prisma.$transaction(async (tx) => {
+      const slot = await tx.parkingSlot.findUniqueOrThrow({ where: { id: parsed.data.slotId }, include: { members: { where: { status: "ACTIVE" }, select: { seatNumber: true } } } });
+      if (slot.members.length >= slot.capacity) throw new Error(`当前车位已满 ${slot.members.length}/${slot.capacity}`);
+      const occupied = new Set(slot.members.map((member) => member.seatNumber).filter((value): value is number => value !== null));
+      const seatNumber = parsed.data.seatNumber || firstAvailableSeat(slot.capacity, occupied);
+      if (!seatNumber || seatNumber > slot.capacity) throw new Error("所选席位不可用");
+      if (occupied.has(seatNumber)) throw new Error(`席位 ${seatNumber} 已被占用`);
+      const created = await tx.member.create({ data: { slotId: parsed.data.slotId, seatNumber, nickname: parsed.data.nickname, contact: parsed.data.contact, startDate: date(parsed.data.startDate), expireDate: date(parsed.data.expireDate), note: parsed.data.note } });
+      await tx.operationLog.create({ data: { userId: user.id, action: "ADD_MEMBER", resourceType: "member", resourceId: created.id, detail: { nickname: created.nickname, slotId: created.slotId }, ip } });
+      return created;
     }, { isolationLevel: "Serializable" });
-    await log(user.id, "ADD_MEMBER", "member", member.id, { nickname: member.nickname, slotId: member.slotId });
     revalidatePath("/");
     return { ok: true, message: "添加车友成功" };
   } catch (error) {
@@ -135,7 +147,7 @@ export async function addMemberAction(_state: ActionState, formData: FormData): 
   }
 }
 
-const updateMemberSchema = memberFields.omit({ slotId: true }).extend({ memberId: z.string().min(1) }).superRefine(validateMemberDates);
+const updateMemberSchema = memberFields.omit({ slotId: true, seatNumber: true }).extend({ memberId: z.string().min(1) }).superRefine(validateMemberDates);
 
 export async function updateMemberAction(_state: ActionState, formData: FormData): Promise<ActionState> {
   const user = await requireUser();
@@ -165,15 +177,16 @@ export async function renewMemberAction(_state: ActionState, formData: FormData)
   const parsed = renewSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message || initialError.message };
   try {
+    const ip = await clientIp();
     const result = await prisma.$transaction(async (tx) => {
       const member = await tx.member.findUniqueOrThrow({ where: { id: parsed.data.memberId } });
       const next = parsed.data.months === 0 && parsed.data.newExpireDate ? date(parsed.data.newExpireDate) : addMonths(member.expireDate, parsed.data.months);
       if (next <= member.expireDate) throw new Error("新到期日期必须晚于当前到期日期");
       await tx.member.update({ where: { id: member.id }, data: { expireDate: next, status: "ACTIVE" } });
       await tx.renewal.create({ data: { memberId: member.id, slotId: member.slotId, oldExpireDate: member.expireDate, newExpireDate: next, months: parsed.data.months || null, amount: parsed.data.amount, paymentMethod: parsed.data.paymentMethod, note: parsed.data.note, operatorId: user.id } });
+      await tx.operationLog.create({ data: { userId: user.id, action: "RENEW_MEMBER", resourceType: "member", resourceId: member.id, detail: { oldDate: member.expireDate, newDate: next, amount: parsed.data.amount }, ip } });
       return { member, next };
     });
-    await log(user.id, "RENEW_MEMBER", "member", result.member.id, { oldDate: result.member.expireDate, newDate: result.next, amount: parsed.data.amount });
     revalidatePath("/");
     return { ok: true, message: `续费成功，新到期时间 ${result.next.toISOString().slice(0, 10)}` };
   } catch (error) {
@@ -183,19 +196,31 @@ export async function renewMemberAction(_state: ActionState, formData: FormData)
 
 export async function exitMemberAction(memberId: string): Promise<ActionState> {
   const user = await requireUser();
-  const member = await prisma.member.update({ where: { id: memberId }, data: { status: "EXITED" } });
-  await log(user.id, "EXIT_MEMBER", "member", member.id, { nickname: member.nickname });
-  revalidatePath("/");
-  return { ok: true, message: `${member.nickname} 已标记退出` };
+  try {
+    const ip = await clientIp();
+    const member = await prisma.$transaction(async (tx) => {
+      const updated = await tx.member.update({ where: { id: memberId }, data: { status: "EXITED", seatNumber: null } });
+      await tx.operationLog.create({ data: { userId: user.id, action: "EXIT_MEMBER", resourceType: "member", resourceId: updated.id, detail: { nickname: updated.nickname }, ip } });
+      return updated;
+    });
+    revalidatePath("/");
+    return { ok: true, message: `${member.nickname} 已标记退出` };
+  } catch {
+    return { ok: false, message: "标记退出失败，请刷新后重试" };
+  }
 }
 
 export async function deleteMemberAction(memberId: string): Promise<ActionState> {
   const user = await requireAdmin();
   try {
-    const member = await prisma.member.findUniqueOrThrow({ where: { id: memberId }, include: { _count: { select: { renewals: true } } } });
-    if (member._count.renewals) return { ok: false, message: "该车友已有续费历史，不能删除；请标记退出" };
-    await prisma.member.delete({ where: { id: member.id } });
-    await log(user.id, "DELETE_MEMBER", "member", member.id, { nickname: member.nickname });
+    const ip = await clientIp();
+    const member = await prisma.$transaction(async (tx) => {
+      const current = await tx.member.findUniqueOrThrow({ where: { id: memberId }, include: { _count: { select: { renewals: true } } } });
+      if (current._count.renewals) throw new Error("该车友已有续费历史，不能删除；请标记退出");
+      await tx.member.delete({ where: { id: current.id } });
+      await tx.operationLog.create({ data: { userId: user.id, action: "DELETE_MEMBER", resourceType: "member", resourceId: current.id, detail: { nickname: current.nickname }, ip } });
+      return current;
+    });
     revalidatePath("/");
     return { ok: true, message: `${member.nickname} 已删除` };
   } catch (error) {
@@ -206,14 +231,21 @@ export async function deleteMemberAction(memberId: string): Promise<ActionState>
 export async function moveMemberAction(memberId: string, targetSlotId: string): Promise<ActionState> {
   const user = await requireUser();
   try {
+    const ip = await clientIp();
     const result = await prisma.$transaction(async (tx) => {
-      const member = await tx.member.findUniqueOrThrow({ where: { id: memberId } });
-      const target = await tx.parkingSlot.findUniqueOrThrow({ where: { id: targetSlotId }, include: { _count: { select: { members: { where: { status: "ACTIVE" } } } } } });
-      if (target._count.members >= target.capacity) throw new Error("目标车位已满");
-      await tx.member.update({ where: { id: memberId }, data: { slotId: targetSlotId } });
+      const member = await tx.member.findUniqueOrThrow({ where: { id: memberId }, include: { slot: { select: { platformId: true } } } });
+      const target = await tx.parkingSlot.findUniqueOrThrow({ where: { id: targetSlotId }, include: { members: { where: { status: "ACTIVE" }, select: { seatNumber: true } } } });
+      if (target.id === member.slotId) throw new Error("请选择其他车位");
+      if (target.platformId !== member.slot.platformId) throw new Error("只能更换到同平台车位");
+      if (target.status !== "ACTIVE") throw new Error("目标车位当前不可用");
+      if (target.members.length >= target.capacity) throw new Error("目标车位已满");
+      const occupied = new Set(target.members.map((item) => item.seatNumber).filter((value): value is number => value !== null));
+      const seatNumber = firstAvailableSeat(target.capacity, occupied);
+      if (!seatNumber) throw new Error("目标车位没有可用席位");
+      await tx.member.update({ where: { id: memberId }, data: { slotId: targetSlotId, seatNumber } });
+      await tx.operationLog.create({ data: { userId: user.id, action: "MOVE_MEMBER", resourceType: "member", resourceId: member.id, detail: { from: member.slotId, to: targetSlotId, seatNumber }, ip } });
       return { member, target };
     }, { isolationLevel: "Serializable" });
-    await log(user.id, "MOVE_MEMBER", "member", memberId, { from: result.member.slotId, to: targetSlotId });
     revalidatePath("/");
     return { ok: true, message: `已换至车位 #${result.target.slotNumber}` };
   } catch (error) {
@@ -247,10 +279,57 @@ export async function updateRemindersAction(_state: ActionState, formData: FormD
 
 export async function updatePlatformAction(_state: ActionState, formData: FormData): Promise<ActionState> {
   const user = await requireAdmin();
-  const parsed = z.object({ platformId: z.string().min(1), defaultCapacity: z.coerce.number().int().min(1).max(99) }).safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return { ok: false, message: "平台容量必须在 1 到 99 之间" };
-  const platform = await prisma.platform.update({ where: { id: parsed.data.platformId }, data: { defaultCapacity: parsed.data.defaultCapacity } });
-  await log(user.id, "UPDATE_PLATFORM", "platform", platform.id, { defaultCapacity: platform.defaultCapacity });
-  revalidatePath("/settings");
-  return { ok: true, message: `${platform.name} 默认容量已更新` };
+  const parsed = z.object({ platformId: z.string().min(1), name: z.string().trim().min(1).max(60), defaultCapacity: z.coerce.number().int().min(1).max(99), status: z.enum(["ACTIVE", "PAUSED"]) }).safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message || "平台设置不正确" };
+  try {
+    const file = formData.get("iconFile");
+    let icon: string | null | undefined;
+    if (formData.get("intent") === "reset-icon") icon = null;
+    else if (file instanceof File && file.size > 0) {
+      if (file.size > 512 * 1024) return { ok: false, message: "平台图标不能超过 512 KB" };
+      if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) return { ok: false, message: "平台图标仅支持 PNG、JPG 或 WebP" };
+      icon = `data:${file.type};base64,${Buffer.from(await file.arrayBuffer()).toString("base64")}`;
+    }
+    const platform = await prisma.platform.update({ where: { id: parsed.data.platformId }, data: { name: parsed.data.name, defaultCapacity: parsed.data.defaultCapacity, status: parsed.data.status, ...(icon !== undefined ? { icon } : {}) } });
+    await log(user.id, "UPDATE_PLATFORM", "platform", platform.id, { name: platform.name, defaultCapacity: platform.defaultCapacity, status: platform.status, icon: icon === null ? "reset" : icon ? "updated" : "unchanged" });
+    revalidatePath("/settings");
+    revalidatePath("/", "layout");
+    return { ok: true, message: `${platform.name} 已更新` };
+  } catch {
+    return { ok: false, message: "平台更新失败，请检查名称后重试" };
+  }
+}
+
+export async function createPlatformAction(_state: ActionState, formData: FormData): Promise<ActionState> {
+  const user = await requireAdmin();
+  const parsed = z.object({ name: z.string().trim().min(1).max(60), slug: z.string().trim().toLowerCase().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "标识只能使用小写字母、数字和连字符"), defaultCapacity: z.coerce.number().int().min(1).max(99) }).safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message || "平台信息不正确" };
+  try {
+    const platform = await prisma.platform.create({ data: parsed.data });
+    await log(user.id, "CREATE_PLATFORM", "platform", platform.id, { name: platform.name, slug: platform.slug, defaultCapacity: platform.defaultCapacity });
+    revalidatePath("/settings");
+    revalidatePath("/", "layout");
+    return { ok: true, message: `${platform.name} 已添加` };
+  } catch {
+    return { ok: false, message: "平台名称或标识已存在" };
+  }
+}
+
+export async function deletePlatformAction(platformId: string): Promise<ActionState> {
+  const user = await requireAdmin();
+  try {
+    const ip = await clientIp();
+    const platform = await prisma.$transaction(async (tx) => {
+      const current = await tx.platform.findUniqueOrThrow({ where: { id: platformId }, include: { _count: { select: { parkingSlots: true } } } });
+      if (current._count.parkingSlots) throw new Error("该平台已有车位，不能删除；可以先停用平台");
+      await tx.platform.delete({ where: { id: current.id } });
+      await tx.operationLog.create({ data: { userId: user.id, action: "DELETE_PLATFORM", resourceType: "platform", resourceId: current.id, detail: { name: current.name, slug: current.slug }, ip } });
+      return current;
+    });
+    revalidatePath("/settings");
+    revalidatePath("/", "layout");
+    return { ok: true, message: `${platform.name} 已删除` };
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : "删除平台失败" };
+  }
 }

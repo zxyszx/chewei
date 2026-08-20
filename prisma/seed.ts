@@ -81,17 +81,17 @@ async function main() {
     ["demo_test", "demo_test", "2026-09-29", "2026-10-29"],
   ];
   const memberRecords = [];
-  for (const [nickname, contact, startDate, expireDate] of slotFiveMembers) {
-    memberRecords.push(await prisma.member.create({ data: { slotId: slots[4].id, nickname, contact, startDate: d(startDate), expireDate: d(expireDate) } }));
+  for (const [index, [nickname, contact, startDate, expireDate]] of slotFiveMembers.entries()) {
+    memberRecords.push(await prisma.member.create({ data: { slotId: slots[4].id, seatNumber: index + 1, nickname, contact, startDate: d(startDate), expireDate: d(expireDate) } }));
   }
 
   const expiries = ["2026-08-15", "2026-08-22", "2026-08-23", "2026-08-27", "2026-09-05", "2026-10-01"];
   for (let i = 0; i < 6; i++) {
     await prisma.member.create({
-      data: { slotId: slots[i === 4 ? 5 : i].id, nickname: `测试车友${i + 1}`, contact: `contact_${i + 1}`, startDate: d("2026-07-01"), expireDate: d(expiries[i]) },
+      data: { slotId: slots[i === 4 ? 5 : i].id, seatNumber: i === 5 ? 2 : 1, nickname: `测试车友${i + 1}`, contact: `contact_${i + 1}`, startDate: d("2026-07-01"), expireDate: d(expiries[i]) },
     });
   }
-  await prisma.member.create({ data: { slotId: slots[9].id, nickname: "Master", contact: "master_contact", startDate: d("2026-08-15"), expireDate: d("2026-11-15") } });
+  await prisma.member.create({ data: { slotId: slots[9].id, seatNumber: 1, nickname: "Master", contact: "master_contact", startDate: d("2026-08-15"), expireDate: d("2026-11-15") } });
 
   for (let i = 0; i < 3; i++) {
     const oldDate = d(["2026-07-29", "2026-08-16", "2026-08-19"][i]);

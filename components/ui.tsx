@@ -14,6 +14,6 @@ export function SubmitButton({ children, className, ...props }: ButtonHTMLAttrib
   return <button type="submit" disabled={pending} className={cn("btn btn-primary", className)} {...props}>{pending && <LoaderCircle size={15} className="animate-spin" />}{pending ? "正在保存" : children}</button>;
 }
 
-export function PageHeader({ title, description, actions }: { title: string; description?: string; actions?: ReactNode }) {
-  return <div className="flex flex-wrap items-start justify-between gap-4"><div><h1 className="page-title">{title}</h1>{description && <p className="page-description">{description}</p>}</div>{actions}</div>;
+export function PageHeader({ title, description, leading, actions }: { title: string; description?: string; leading?: ReactNode; actions?: ReactNode }) {
+  return <div className="flex flex-wrap items-start justify-between gap-4"><div className="flex min-w-0 items-start gap-3">{leading}<div className="min-w-0"><h1 className="page-title">{title}</h1>{description && <p className="page-description">{description}</p>}</div></div>{actions}</div>;
 }

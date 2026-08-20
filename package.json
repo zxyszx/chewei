@@ -24,6 +24,7 @@
     "clsx": "latest",
     "date-fns": "latest",
     "dotenv": "latest",
+    "exceljs": "latest",
     "lucide-react": "latest",
     "next": "latest",
     "pg": "latest",
@@ -31,9 +32,9 @@
     "react-dom": "latest",
     "react-hook-form": "latest",
     "recharts": "latest",
+    "simple-icons": "^16.28.0",
     "sonner": "latest",
     "tailwind-merge": "latest",
-    "exceljs": "latest",
     "zod": "latest"
   },
   "devDependencies": {

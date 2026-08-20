@@ -3,10 +3,20 @@ import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 const payment: Record<string, string> = { WECHAT: "微信", ALIPAY: "支付宝", CARD: "信用卡", CASH: "现金", OTHER: "其他" };
+const paymentMethods = Object.keys(payment);
+const localDate = (value: string, end = false) => new Date(`${value}T${end ? "23:59:59.999" : "00:00:00"}+08:00`);
 
-export async function GET() {
+export async function GET(request: Request) {
   await requireUser();
-  const records = await prisma.renewal.findMany({ include: { member: true, slot: { include: { platform: true } }, operator: true }, orderBy: { createdAt: "desc" } });
+  const params = new URL(request.url).searchParams;
+  const q = params.get("q") || "";
+  const platform = params.get("platform") || "";
+  const slot = params.get("slot") || "";
+  const method = params.get("payment") || "";
+  const from = params.get("from") || "";
+  const to = params.get("to") || "";
+  const validMethod = paymentMethods.includes(method) ? method as "WECHAT" | "ALIPAY" | "CARD" | "CASH" | "OTHER" : undefined;
+  const records = await prisma.renewal.findMany({ where: { ...(q ? { OR: [{ member: { nickname: { contains: q, mode: "insensitive" } } }, { member: { contact: { contains: q, mode: "insensitive" } } }] } : {}), ...(platform ? { slot: { platform: { slug: platform } } } : {}), ...(slot ? { slotId: slot } : {}), ...(validMethod ? { paymentMethod: validMethod } : {}), ...(from || to ? { createdAt: { ...(from ? { gte: localDate(from) } : {}), ...(to ? { lte: localDate(to, true) } : {}) } } : {}) }, include: { member: true, slot: { include: { platform: true } }, operator: true }, orderBy: { createdAt: "desc" } });
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "车位管理系统";
   const sheet = workbook.addWorksheet("续费记录", { views: [{ state: "frozen", ySplit: 1 }] });

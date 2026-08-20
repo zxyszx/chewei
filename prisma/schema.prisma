@@ -58,6 +58,7 @@ model ParkingSlot {
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
 
+  @@index([platformId])
   @@unique([platformId, slotNumber])
   @@map("parking_slots")
 }
@@ -71,6 +72,7 @@ model Member {
   startDate  DateTime     @db.Date
   expireDate DateTime     @db.Date
   status     RecordStatus @default(ACTIVE)
+  seatNumber Int?
   note       String?
   renewals   Renewal[]
   createdAt  DateTime     @default(now())
@@ -78,6 +80,8 @@ model Member {
 
   @@index([contact])
   @@index([expireDate])
+  @@index([slotId])
+  @@unique([slotId, seatNumber])
   @@map("members")
 }
 
@@ -98,6 +102,7 @@ model Renewal {
   createdAt       DateTime       @default(now())
 
   @@index([createdAt])
+  @@index([memberId])
   @@map("renewals")
 }
 
