@@ -253,7 +253,13 @@ function validateMemberDates(
     });
 }
 
-const memberSchema = memberFields.superRefine(validateMemberDates);
+const memberSchema = memberFields
+  .extend({
+    months: z.coerce.number().int().min(1).max(120),
+    amount: z.coerce.number().min(0),
+    paymentMethod: z.enum(["WECHAT", "ALIPAY", "CARD", "CASH", "OTHER"]),
+  })
+  .superRefine(validateMemberDates);
 
 export async function addMemberAction(
   _state: ActionState,
@@ -305,13 +311,35 @@ export async function addMemberAction(
             note: parsed.data.note,
           },
         });
+        if (parsed.data.amount > 0) {
+          await tx.renewal.create({
+            data: {
+              memberId: created.id,
+              slotId: created.slotId,
+              oldExpireDate: created.startDate,
+              newExpireDate: created.expireDate,
+              months: parsed.data.months,
+              amount: parsed.data.amount,
+              paymentMethod: parsed.data.paymentMethod,
+              note: "首次入位",
+              operatorId: user.id,
+            },
+          });
+        }
         await tx.operationLog.create({
           data: {
             userId: user.id,
             action: "ADD_MEMBER",
             resourceType: "member",
             resourceId: created.id,
-            detail: { nickname: created.nickname, slotId: created.slotId },
+            detail: {
+              nickname: created.nickname,
+              slotId: created.slotId,
+              seatNumber,
+              months: parsed.data.months,
+              amount: parsed.data.amount,
+              paymentMethod: parsed.data.paymentMethod,
+            },
             ip,
           },
         });
@@ -530,6 +558,7 @@ export async function deleteMemberAction(
 export async function moveMemberAction(
   memberId: string,
   targetSlotId: string,
+  targetSeatNumber: number,
 ): Promise<ActionState> {
   const user = await requireUser();
   try {
@@ -538,51 +567,78 @@ export async function moveMemberAction(
       async (tx) => {
         const member = await tx.member.findUniqueOrThrow({
           where: { id: memberId },
-          include: { slot: { select: { platformId: true } } },
+          include: {
+            slot: { select: { platformId: true, slotNumber: true } },
+          },
         });
         const target = await tx.parkingSlot.findUniqueOrThrow({
           where: { id: targetSlotId },
-          include: {
-            members: {
-              where: { status: "ACTIVE" },
-              select: { seatNumber: true },
-            },
-          },
         });
-        if (target.id === member.slotId) throw new Error("请选择其他合租车位");
+        if (member.status !== "ACTIVE" || !member.seatNumber)
+          throw new Error("该车友当前不在位，无法换位");
         if (target.platformId !== member.slot.platformId)
           throw new Error("只能更换到同平台合租车位");
         if (target.status !== "ACTIVE")
           throw new Error("目标合租车位当前不可用");
-        if (target.members.length >= target.capacity)
-          throw new Error("目标合租车位席位已满");
-        const occupied = new Set(
-          target.members
-            .map((item) => item.seatNumber)
-            .filter((value): value is number => value !== null),
-        );
-        const seatNumber = firstAvailableSeat(target.capacity, occupied);
-        if (!seatNumber) throw new Error("目标合租车位没有可用席位");
+        if (targetSeatNumber < 1 || targetSeatNumber > target.capacity)
+          throw new Error("目标席位超出车位容量");
+        if (
+          target.id === member.slotId &&
+          targetSeatNumber === member.seatNumber
+        )
+          throw new Error("请选择其他席位");
+
+        const targetMember = await tx.member.findFirst({
+          where: {
+            slotId: target.id,
+            seatNumber: targetSeatNumber,
+            status: "ACTIVE",
+          },
+        });
+
+        if (targetMember) {
+          await tx.member.update({
+            where: { id: targetMember.id },
+            data: { seatNumber: null },
+          });
+        }
         await tx.member.update({
           where: { id: memberId },
-          data: { slotId: targetSlotId, seatNumber },
+          data: { slotId: targetSlotId, seatNumber: targetSeatNumber },
         });
+        if (targetMember) {
+          await tx.member.update({
+            where: { id: targetMember.id },
+            data: { slotId: member.slotId, seatNumber: member.seatNumber },
+          });
+        }
         await tx.operationLog.create({
           data: {
             userId: user.id,
             action: "MOVE_MEMBER",
             resourceType: "member",
             resourceId: member.id,
-            detail: { from: member.slotId, to: targetSlotId, seatNumber },
+            detail: {
+              from: member.slotId,
+              fromSeatNumber: member.seatNumber,
+              to: targetSlotId,
+              toSeatNumber: targetSeatNumber,
+              swappedMemberId: targetMember?.id || null,
+            },
             ip,
           },
         });
-        return { member, target };
+        return { member, target, targetMember };
       },
       { isolationLevel: "Serializable" },
     );
     revalidatePath("/");
-    return { ok: true, message: `已换至合租车位 #${result.target.slotNumber}` };
+    return {
+      ok: true,
+      message: result.targetMember
+        ? `已与 ${result.targetMember.nickname} 互换席位`
+        : `已换至合租车位 #${result.target.slotNumber} 的席位 ${targetSeatNumber}`,
+    };
   } catch (error) {
     return {
       ok: false,
@@ -596,10 +652,19 @@ export async function moveMemberFormAction(
   formData: FormData,
 ): Promise<ActionState> {
   const parsed = z
-    .object({ memberId: z.string().min(1), targetSlotId: z.string().min(1) })
+    .object({
+      memberId: z.string().min(1),
+      targetSlotId: z.string().min(1),
+      targetSeatNumber: z.coerce.number().int().positive(),
+    })
     .safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return { ok: false, message: "请选择目标合租车位" };
-  return moveMemberAction(parsed.data.memberId, parsed.data.targetSlotId);
+  if (!parsed.success)
+    return { ok: false, message: "请选择目标合租车位和席位" };
+  return moveMemberAction(
+    parsed.data.memberId,
+    parsed.data.targetSlotId,
+    parsed.data.targetSeatNumber,
+  );
 }
 
 export async function revealPasswordAction(
