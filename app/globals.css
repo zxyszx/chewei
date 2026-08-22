@@ -20,8 +20,7 @@
   --warning-soft: #fff5df;
   --danger: #c93636;
   --danger-soft: #fff0f0;
-  --sidebar-width: 220px;
-  --header-height: 58px;
+  --sidebar-width: 224px;
 }
 
 :root[data-theme="dark"] {
@@ -127,7 +126,17 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 
 .login-page { background: #f1f3f4; }
 .login-shell { background: var(--surface); }
-.sidebar, .app-header { background: color-mix(in srgb, var(--surface) 96%, transparent); }
+.sidebar { background: color-mix(in srgb, var(--surface) 97%, transparent); }
+.app-main { padding-top: 22px; }
+.sidebar-icon-button {
+  display: grid; width: 36px; height: 36px; flex: 0 0 36px; place-items: center; border: 0; border-radius: 7px;
+  background: transparent; color: var(--muted-foreground); transition: background 150ms, color 150ms;
+}
+.sidebar-icon-button:hover { background: var(--surface-subtle); color: var(--foreground); }
+.mobile-sidebar-trigger {
+  position: fixed; left: 12px; top: 12px; z-index: 50; width: 40px; height: 40px; align-items: center; justify-content: center;
+  border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--foreground); box-shadow: 0 2px 10px rgb(0 0 0 / 8%);
+}
 .menu-popover { background: var(--surface); }
 .command-input:focus-visible { outline: none; }
 .platform-tabs { display: flex; width: 100%; overflow-x: auto; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); box-shadow: var(--shadow); scrollbar-width: thin; }
@@ -141,17 +150,25 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .nav-link { display: flex; min-height: 36px; align-items: center; gap: 10px; border-radius: 6px; padding: 0 10px; color: var(--muted-foreground); font-size: 13px; font-weight: 550; transition: background 150ms, color 150ms; }
 .nav-link:hover { background: var(--surface-subtle); color: var(--foreground); }
 .nav-link-active { background: var(--accent-soft); color: var(--accent); }
+.nav-dot { position: absolute; right: -4px; top: -3px; width: 6px; height: 6px; border: 1px solid var(--surface); border-radius: 50%; background: var(--danger); }
 .nav-badge { min-width: 22px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); padding: 1px 6px; color: var(--muted-foreground); font-size: 10px; text-align: center; font-variant-numeric: tabular-nums; }
 .account-menu summary { list-style: none; }
 .account-menu summary::-webkit-details-marker { display: none; }
 .account-trigger { display: flex; min-height: 38px; align-items: center; gap: 8px; border-radius: 6px; padding: 3px 6px; cursor: pointer; transition: background 150ms; }
 .account-trigger:hover, .account-menu[open] .account-trigger { background: var(--surface-subtle); }
 .account-avatar { display: grid; width: 30px; height: 30px; flex: 0 0 30px; place-items: center; border-radius: 50%; background: var(--primary); color: var(--primary-foreground); font-size: 12px; font-weight: 700; }
+.account-popover { position: absolute; bottom: calc(100% + 8px); left: 0; }
+.account-menu-compact .account-popover { bottom: 0; left: calc(100% + 8px); }
 .menu-item { display: flex; min-height: 36px; align-items: center; gap: 9px; border-radius: 5px; padding: 0 10px; color: var(--foreground); font-size: 12px; transition: background 140ms; }
 .menu-item:hover, .menu-item-active { background: var(--surface-subtle); }
 .menu-item-danger { color: var(--danger); }
 .action-menu summary { list-style: none; }
 .action-menu summary::-webkit-details-marker { display: none; }
+.row-action-trigger {
+  display: grid; width: 32px; height: 32px; place-items: center; border: 0; border-radius: 6px;
+  background: transparent; color: var(--muted-foreground); transition: background 140ms, color 140ms;
+}
+.row-action-trigger:hover, .action-menu[open] .row-action-trigger { background: var(--surface-subtle); color: var(--foreground); }
 .segmented-control { overflow: hidden; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--surface-subtle); padding: 3px; gap: 3px; }
 .segmented-control button { border-radius: 4px; color: var(--muted-foreground); }
 .segmented-control button:hover { color: var(--foreground); }
@@ -183,6 +200,7 @@ button:disabled { cursor: not-allowed; opacity: .55; }
   :root { --sidebar-width: 0px; }
   .desktop-only { display: none !important; }
   .mobile-only { display: inline-flex; }
+  .app-main { padding-top: 64px; }
   .page-title { font-size: 18px; }
   .panel { border-radius: 6px; }
 }

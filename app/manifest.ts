@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "车位管理系统",
     short_name: "车位管理",
-    description: "流媒体共享账号、成员席位和续费管理后台",
+    description: "流媒体合租车位、成员席位和续费管理后台",
     start_url: "/",
     scope: "/",
     display: "standalone",

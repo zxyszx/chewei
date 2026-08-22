@@ -111,7 +111,7 @@ export async function createSlotAction(
       select: { id: true },
     });
     if (existing)
-      return { ok: false, message: "登录账号已存在，请直接编辑现有共享账号" };
+      return { ok: false, message: "登录账号已存在，请直接编辑现有合租车位" };
     const slot = await prisma.parkingSlot.create({
       data: {
         ...slotData,
@@ -124,7 +124,7 @@ export async function createSlotAction(
       email: slot.accountEmail,
     });
     revalidatePath("/");
-    return { ok: true, message: `共享账号 #${slot.slotNumber} 保存成功` };
+    return { ok: true, message: `合租车位 #${slot.slotNumber} 保存成功` };
   } catch {
     return { ok: false, message: "账号编号或登录账号已存在，请检查后重试" };
   }
@@ -162,7 +162,7 @@ export async function updateSlotAction(
       select: { id: true },
     });
     if (duplicate)
-      return { ok: false, message: "登录账号已被其他共享账号使用" };
+      return { ok: false, message: "登录账号已被其他合租车位使用" };
     const activeMembers = await prisma.member.count({
       where: { slotId, status: "ACTIVE" },
     });
@@ -185,7 +185,7 @@ export async function updateSlotAction(
       status: slot.status,
     });
     revalidatePath("/");
-    return { ok: true, message: `共享账号 #${slot.slotNumber} 已更新` };
+    return { ok: true, message: `合租车位 #${slot.slotNumber} 已更新` };
   } catch {
     return { ok: false, message: "账号编号或登录账号已存在，请检查后重试" };
   }
@@ -201,7 +201,7 @@ export async function deleteSlotAction(slotId: string): Promise<ActionState> {
         include: { _count: { select: { members: true, renewals: true } } },
       });
       if (current._count.members || current._count.renewals)
-        throw new Error("该共享账号已有车友或续费历史，不能删除；可以改为暂停");
+        throw new Error("该合租车位已有车友或续费历史，不能删除；可以改为暂停");
       await tx.parkingSlot.delete({ where: { id: current.id } });
       await tx.operationLog.create({
         data: {
@@ -219,11 +219,11 @@ export async function deleteSlotAction(slotId: string): Promise<ActionState> {
       return current;
     });
     revalidatePath("/");
-    return { ok: true, message: `共享账号 #${slot.slotNumber} 已删除` };
+    return { ok: true, message: `合租车位 #${slot.slotNumber} 已删除` };
   } catch (error) {
     return {
       ok: false,
-      message: error instanceof Error ? error.message : "删除共享账号失败",
+      message: error instanceof Error ? error.message : "删除合租车位失败",
     };
   }
 }
@@ -281,7 +281,7 @@ export async function addMemberAction(
         });
         if (slot.members.length >= slot.capacity)
           throw new Error(
-            `当前共享账号席位已满 ${slot.members.length}/${slot.capacity}`,
+            `当前合租车位席位已满 ${slot.members.length}/${slot.capacity}`,
           );
         const occupied = new Set(
           slot.members
@@ -549,20 +549,20 @@ export async function moveMemberAction(
             },
           },
         });
-        if (target.id === member.slotId) throw new Error("请选择其他共享账号");
+        if (target.id === member.slotId) throw new Error("请选择其他合租车位");
         if (target.platformId !== member.slot.platformId)
-          throw new Error("只能更换到同平台共享账号");
+          throw new Error("只能更换到同平台合租车位");
         if (target.status !== "ACTIVE")
-          throw new Error("目标共享账号当前不可用");
+          throw new Error("目标合租车位当前不可用");
         if (target.members.length >= target.capacity)
-          throw new Error("目标共享账号席位已满");
+          throw new Error("目标合租车位席位已满");
         const occupied = new Set(
           target.members
             .map((item) => item.seatNumber)
             .filter((value): value is number => value !== null),
         );
         const seatNumber = firstAvailableSeat(target.capacity, occupied);
-        if (!seatNumber) throw new Error("目标共享账号没有可用席位");
+        if (!seatNumber) throw new Error("目标合租车位没有可用席位");
         await tx.member.update({
           where: { id: memberId },
           data: { slotId: targetSlotId, seatNumber },
@@ -582,7 +582,7 @@ export async function moveMemberAction(
       { isolationLevel: "Serializable" },
     );
     revalidatePath("/");
-    return { ok: true, message: `已换至共享账号 #${result.target.slotNumber}` };
+    return { ok: true, message: `已换至合租车位 #${result.target.slotNumber}` };
   } catch (error) {
     return {
       ok: false,
@@ -598,7 +598,7 @@ export async function moveMemberFormAction(
   const parsed = z
     .object({ memberId: z.string().min(1), targetSlotId: z.string().min(1) })
     .safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return { ok: false, message: "请选择目标共享账号" };
+  if (!parsed.success) return { ok: false, message: "请选择目标合租车位" };
   return moveMemberAction(parsed.data.memberId, parsed.data.targetSlotId);
 }
 
@@ -749,7 +749,7 @@ export async function deletePlatformAction(
         include: { _count: { select: { parkingSlots: true } } },
       });
       if (current._count.parkingSlots)
-        throw new Error("该平台已有共享账号，不能删除；可以先停用平台");
+        throw new Error("该平台已有合租车位，不能删除；可以先停用平台");
       await tx.platform.delete({ where: { id: current.id } });
       await tx.operationLog.create({
         data: {

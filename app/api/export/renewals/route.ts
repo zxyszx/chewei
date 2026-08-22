@@ -63,7 +63,7 @@ export async function GET(request: Request) {
     { header: "日期", key: "createdAt", width: 20 },
     { header: "车友", key: "member", width: 18 },
     { header: "平台", key: "platform", width: 16 },
-    { header: "共享账号", key: "slot", width: 12 },
+    { header: "合租车位", key: "slot", width: 12 },
     { header: "原到期时间", key: "old", width: 16 },
     { header: "新到期时间", key: "next", width: 16 },
     { header: "金额", key: "amount", width: 12 },

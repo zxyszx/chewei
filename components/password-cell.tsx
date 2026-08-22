@@ -1,6 +1,6 @@
 "use client";
 
-import { Copy, Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { revealPasswordAction } from "@/app/actions";
@@ -14,5 +14,13 @@ export function PasswordCell({ slotId }: { slotId: string }) {
     const result = await revealPasswordAction(slotId);
     if (result.ok && result.data?.password) { setPassword(result.data.password); setVisible(true); toast.success(result.message); } else toast.error(result.message);
   });
-  return <div className="flex items-center gap-2"><span className="min-w-[88px] font-mono text-[12px]">{visible ? password : "••••••••"}</span><button className="text-[#657080]" disabled={pending} onClick={visible ? () => setVisible(false) : reveal} aria-label={visible ? "隐藏密码" : "查看密码"} title={visible ? "隐藏密码" : "查看密码"}>{visible ? <EyeOff size={15} /> : <Eye size={15} />}</button>{visible && <button className="text-[#657080]" onClick={async () => { await navigator.clipboard.writeText(password); toast.success("密码已复制"); }} aria-label="复制密码" title="复制密码"><Copy size={15} /></button>}</div>;
+  const copyPassword = async () => {
+    if (!visible || !password) return;
+    await navigator.clipboard.writeText(password);
+    toast.success("密码已复制");
+  };
+  return <div className="flex w-[132px] items-center gap-2">
+    <button type="button" disabled={!visible} onClick={copyPassword} className="min-w-0 flex-1 truncate text-left font-mono text-[12px] disabled:cursor-default disabled:opacity-100" aria-label={visible ? "复制密码" : "密码已隐藏"} title={visible ? "点击复制密码" : undefined}>{visible ? password : "••••••••"}</button>
+    <button type="button" className="grid size-7 shrink-0 place-items-center rounded-[5px] text-[#657080] hover:bg-[var(--surface-subtle)]" disabled={pending} onClick={visible ? () => setVisible(false) : reveal} aria-label={visible ? "隐藏密码" : "查看密码"} title={visible ? "隐藏密码" : "查看密码"}>{visible ? <EyeOff size={15} /> : <Eye size={15} />}</button>
+  </div>;
 }

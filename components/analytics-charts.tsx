@@ -25,13 +25,13 @@ export function AnalyticsCharts({
         <div className="mb-4">
           <h2 className="font-semibold">各平台规模</h2>
           <p className="mt-1 text-[11px] text-[var(--muted-foreground)]">
-            共享账号与在位车友数量
+            合租车位与在位车友数量
           </p>
         </div>
         <div
           className="h-[300px]"
           role="img"
-          aria-label="各平台共享账号和车友数量柱状图"
+          aria-label="各平台合租车位和车友数量柱状图"
         >
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
@@ -61,7 +61,7 @@ export function AnalyticsCharts({
               />
               <Bar
                 dataKey="slots"
-                name="共享账号"
+                name="合租车位"
                 fill="#3b82f6"
                 radius={[3, 3, 0, 0]}
               />

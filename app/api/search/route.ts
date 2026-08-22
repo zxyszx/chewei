@@ -30,7 +30,7 @@ export async function GET(request: Request) {
   ]);
 
   return Response.json({ items: [
-    ...slots.map((slot) => ({ id: slot.id, type: "共享账号" as const, title: slot.accountEmail, subtitle: `${slot.platform.name} · 账号 #${slot.slotNumber}`, href: `/slots?platform=${slot.platform.slug}&open=${slot.id}` })),
+    ...slots.map((slot) => ({ id: slot.id, type: "合租车位" as const, title: slot.accountEmail, subtitle: `${slot.platform.name} · 车位 #${slot.slotNumber}`, href: `/slots?platform=${slot.platform.slug}&open=${slot.id}` })),
     ...members.map((member) => ({ id: member.id, type: "车友" as const, title: member.nickname, subtitle: `${member.contact} · ${member.slot.platform.name} 账号 #${member.slot.slotNumber}`, href: `/slots?platform=${member.slot.platform.slug}&open=${member.slotId}` })),
   ].slice(0, 12) }, { headers: { "cache-control": "private, no-store" } });
 }

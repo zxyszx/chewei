@@ -27,9 +27,9 @@ import { prisma } from "@/lib/prisma";
 export const metadata = { title: "总览" };
 
 const operationNames: Record<string, string> = {
-  CREATE_SLOT: "创建共享账号",
-  UPDATE_SLOT: "编辑共享账号",
-  DELETE_SLOT: "删除共享账号",
+  CREATE_SLOT: "创建合租车位",
+  UPDATE_SLOT: "编辑合租车位",
+  DELETE_SLOT: "删除合租车位",
   ADD_MEMBER: "添加车友",
   UPDATE_MEMBER: "编辑车友",
   DELETE_MEMBER: "删除车友",
@@ -157,7 +157,7 @@ export default async function OverviewPage() {
         aria-label="关键数据"
       >
         <Stat
-          label="共享账号"
+          label="合租车位"
           value={slots.length}
           detail="所有平台"
           icon={CircleParking}
@@ -290,7 +290,7 @@ export default async function OverviewPage() {
       <section className="panel overflow-hidden">
         <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3.5">
           <div>
-            <h2 className="font-semibold">最近共享账号</h2>
+            <h2 className="font-semibold">最近合租车位</h2>
             <p className="mt-0.5 text-[11px] text-[var(--muted-foreground)]">
               最近更新的登录账号与成员席位
             </p>

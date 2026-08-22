@@ -41,10 +41,10 @@ export default async function LoginPage() {
               <span className="text-[12px] font-medium">内部管理工作台</span>
             </div>
             <p className="max-w-[390px] text-[32px] font-semibold leading-[1.3]">
-              一个页面掌握共享账号的每次变化
+              一个页面掌握合租车位的每次变化
             </p>
             <p className="mt-4 max-w-[420px] text-[14px] leading-7 text-[#bdbdbd]">
-              集中管理共享账号、成员席位、续费与到期提醒，让每天的运营工作更清楚、更少遗漏。
+              集中管理合租车位、成员席位、续费与到期提醒，让每天的运营工作更清楚、更少遗漏。
             </p>
             <div className="mt-10 grid grid-cols-3 gap-3" aria-label="产品能力">
               {[
@@ -91,7 +91,7 @@ export default async function LoginPage() {
                   欢迎回来
                 </h1>
                 <p className="mt-3 text-[14px] leading-6 text-[var(--muted-foreground)]">
-                  登录后继续管理共享账号与续费信息
+                  登录后继续管理合租车位与续费信息
                 </p>
               </header>
               <LoginForm />

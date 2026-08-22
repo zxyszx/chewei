@@ -8,6 +8,28 @@ import { hashToken } from "@/lib/crypto";
 
 const COOKIE_NAME = "parking_session";
 const SESSION_DAYS = 7;
+const SESSION_CACHE_MS = 30_000;
+
+type CachedSessionUser = {
+  expiresAt: number;
+  user: Awaited<ReturnType<typeof loadSessionUser>>;
+};
+
+const globalForAuth = globalThis as unknown as {
+  parkingSessionCache?: Map<string, CachedSessionUser>;
+};
+const sessionCache = globalForAuth.parkingSessionCache ?? new Map<string, CachedSessionUser>();
+
+if (process.env.NODE_ENV !== "production") globalForAuth.parkingSessionCache = sessionCache;
+
+async function loadSessionUser(tokenHash: string) {
+  const session = await prisma.session.findUnique({
+    where: { tokenHash },
+    include: { user: true },
+  });
+  if (!session || session.expiresAt < new Date() || session.user.status !== "ACTIVE") return null;
+  return session.user;
+}
 
 async function shouldUseSecureCookie() {
   const configured = process.env.SESSION_COOKIE_SECURE;
@@ -26,12 +48,13 @@ async function shouldUseSecureCookie() {
 export const getCurrentUser = cache(async () => {
   const token = (await cookies()).get(COOKIE_NAME)?.value;
   if (!token) return null;
-  const session = await prisma.session.findUnique({
-    where: { tokenHash: hashToken(token) },
-    include: { user: true },
-  });
-  if (!session || session.expiresAt < new Date() || session.user.status !== "ACTIVE") return null;
-  return session.user;
+  const tokenHash = hashToken(token);
+  const cached = sessionCache.get(tokenHash);
+  if (cached && cached.expiresAt > Date.now()) return cached.user;
+
+  const user = await loadSessionUser(tokenHash);
+  sessionCache.set(tokenHash, { expiresAt: Date.now() + SESSION_CACHE_MS, user });
+  return user;
 });
 
 export async function requireUser() {
@@ -68,6 +91,10 @@ export async function createSession(username: string, password: string) {
 export async function destroySession() {
   const store = await cookies();
   const token = store.get(COOKIE_NAME)?.value;
-  if (token) await prisma.session.deleteMany({ where: { tokenHash: hashToken(token) } });
+  if (token) {
+    const tokenHash = hashToken(token);
+    sessionCache.delete(tokenHash);
+    await prisma.session.deleteMany({ where: { tokenHash } });
+  }
   store.delete(COOKIE_NAME);
 }

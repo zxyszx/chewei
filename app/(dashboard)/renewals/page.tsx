@@ -116,12 +116,12 @@ export default async function RenewalsPage({
             ))}
           </select>
           <select
-            aria-label="共享账号"
+            aria-label="合租车位"
             className="select w-auto max-w-[190px]"
             name="slot"
             defaultValue={slot}
           >
-            <option value="">全部共享账号</option>
+            <option value="">全部合租车位</option>
             {slots.map((item) => (
               <option key={item.id} value={item.id}>
                 {item.platform.name} #{item.slotNumber}
@@ -180,7 +180,7 @@ export default async function RenewalsPage({
                 <th>日期</th>
                 <th>车友</th>
                 <th>平台</th>
-                <th>共享账号</th>
+                <th>合租车位</th>
                 <th>原到期时间</th>
                 <th>新到期时间</th>
                 <th>金额</th>

@@ -56,7 +56,7 @@ export default async function AnalyticsPage() {
   });
   const metrics = [
     [
-      "共享账号",
+      "合租车位",
       slots.length,
       `${slots.filter((s) => slotStatus(s.capacity, s.members.length, s.status) === "满").length} 个已满`,
       CircleParking,
@@ -88,7 +88,7 @@ export default async function AnalyticsPage() {
     <div className="mx-auto max-w-[1700px] space-y-4">
       <PageHeader
         title="数据统计"
-        description="共享账号使用率、续费与到期趋势"
+        description="合租车位使用率、续费与到期趋势"
       />
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {metrics.map(([label, value, detail, Icon, tone]) => (

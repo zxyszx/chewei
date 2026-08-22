@@ -71,7 +71,7 @@ export default async function RemindersPage({
               <tr>
                 <th>车友</th>
                 <th>平台</th>
-                <th>共享账号</th>
+                <th>合租车位</th>
                 <th>联系方式</th>
                 <th>到期时间</th>
                 <th>剩余时间</th>
