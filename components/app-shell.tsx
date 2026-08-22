@@ -5,7 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   Bell, ChartNoAxesCombined, ChevronDown, CreditCard, History, House,
-  LoaderCircle, LogOut, Menu, PanelLeft, PanelLeftClose, ParkingCircle,
+  LoaderCircle, LogOut, Menu, PanelLeft, ParkingCircle,
   Settings, UsersRound, X,
 } from "lucide-react";
 import { logoutAction } from "@/app/actions";
@@ -50,10 +50,18 @@ function AccountMenu({ username, role, compact }: { username: string; role: stri
   </details>;
 }
 
+function SidebarToggle({ compact, toggle }: { compact: boolean; toggle: () => void }) {
+  const label = compact ? "打开侧边栏" : "收起侧边栏";
+  return <button onClick={toggle} className={cn("sidebar-icon-button sidebar-toggle group relative", compact && "sidebar-toggle-compact")} aria-label={label}>
+    <PanelLeft size={19} strokeWidth={1.8} />
+    <span role="tooltip" className="sidebar-toggle-tooltip">{label}</span>
+  </button>;
+}
+
 function Sidebar({ reminderCount, username, role, compact = false, close, toggleCompact }: { reminderCount: number; username: string; role: string; compact?: boolean; close?: () => void; toggleCompact?: () => void }) {
   return <aside className={cn("sidebar flex h-full shrink-0 flex-col border-r border-[var(--border)] transition-[width] duration-200", compact ? "w-[56px]" : "w-[224px]")}>
     <div className={cn("flex h-14 shrink-0 items-center", compact ? "justify-center" : "gap-2 px-3")}>
-      {compact ? <button onClick={toggleCompact} className="sidebar-icon-button" aria-label="展开侧栏" title="展开侧栏"><PanelLeft size={19} /></button> : <><div className="grid size-8 shrink-0 place-items-center rounded-full bg-[var(--primary)] text-[var(--primary-foreground)]"><ParkingCircle size={19} /></div><strong className="min-w-0 flex-1 truncate text-[14px]">车位管理系统</strong>{toggleCompact && <button onClick={toggleCompact} className="sidebar-icon-button" aria-label="收起侧栏" title="收起侧栏"><PanelLeftClose size={18} /></button>}</>}
+      {compact ? toggleCompact && <SidebarToggle compact toggle={toggleCompact} /> : <><div className="grid size-8 shrink-0 place-items-center rounded-full bg-[var(--primary)] text-[var(--primary-foreground)]"><ParkingCircle size={19} /></div><strong className="min-w-0 flex-1 truncate text-[14px]">车位管理系统</strong>{toggleCompact && <SidebarToggle compact={false} toggle={toggleCompact} />}</>}
       {close && <button autoFocus onClick={close} className="sidebar-icon-button ml-auto" aria-label="关闭菜单"><X size={18} /></button>}
     </div>
     <nav className={cn("flex-1 overflow-y-auto py-2", compact ? "px-1.5" : "px-2.5")} aria-label="主导航">
