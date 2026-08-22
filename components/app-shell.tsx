@@ -29,7 +29,7 @@ function NavLink({ href, label, icon: Icon, badge, compact = false, onClick }: {
   const searchParams = useSearchParams();
   const [targetPath, query] = href.split("?");
   const active = href === "/" ? pathname === href : query ? pathname === targetPath && [...new URLSearchParams(query)].every(([key, value]) => searchParams.get(key) === value) : targetPath === "/slots" ? pathname === targetPath && !searchParams.get("platform") : pathname.startsWith(targetPath);
-  return <Link href={href} onClick={onClick} title={compact ? label : undefined} aria-label={compact ? label : undefined} className={cn("nav-link", compact && "justify-center px-0", active && "nav-link-active")}>
+  return <Link href={href} prefetch onClick={onClick} title={compact ? label : undefined} aria-label={compact ? label : undefined} className={cn("nav-link", compact && "justify-center px-0", active && "nav-link-active")}>
     <span className="relative grid size-5 shrink-0 place-items-center"><Icon size={18} strokeWidth={1.8} />{compact && badge !== undefined && badge > 0 && <span className="nav-dot" />}</span>
     {!compact && <><span className="min-w-0 flex-1 truncate">{label}</span>{badge !== undefined && <span className="nav-badge">{badge}</span>}<NavPending /></>}
   </Link>;
