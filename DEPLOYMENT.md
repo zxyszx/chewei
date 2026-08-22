@@ -76,7 +76,7 @@ APP_PORT=3000
 chmod 600 .env.production
 ```
 
-`ENCRYPTION_KEY` 用于解密主账号密码，投入真实数据后必须安全备份；丢失后数据库中的密码无法恢复。
+`ENCRYPTION_KEY` 用于解密共享账号密码，投入真实数据后必须安全备份；丢失后数据库中的密码无法恢复。
 
 ## 4. 构建并启动
 
@@ -91,7 +91,7 @@ docker compose --env-file .env.production ps
 docker compose --env-file .env.production exec app npm run db:seed
 ```
 
-Seed 只用于首次测试数据初始化；检测到已有车位时会跳过，不要在正式运营后强制重置。
+Seed 只用于首次测试数据初始化；检测到已有共享账号时会跳过，不要在正式运营后强制重置。
 
 ## 5. 验证
 
@@ -103,10 +103,10 @@ docker compose --env-file .env.production logs --tail=100 app
 健康检查应返回：
 
 ```json
-{"status":"ok","database":"connected"}
+{ "status": "ok", "database": "connected" }
 ```
 
-然后访问 `http://服务器IP:3000`，使用 `.env.production` 中的管理员账号登录，验证新建车位、添加车友、续费和导出。该方式只用于临时测试；HTTP 无法保护登录密码，浏览器密码管理器也会显示安全警告。
+然后访问 `http://服务器IP:3000`，使用 `.env.production` 中的管理员账号登录，验证新建共享账号、添加车友、续费和导出。该方式只用于临时测试；HTTP 无法保护登录密码，浏览器密码管理器也会显示安全警告。
 
 ## 6. 更新版本
 

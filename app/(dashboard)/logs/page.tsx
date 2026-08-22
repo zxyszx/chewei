@@ -5,8 +5,8 @@ import { Badge, PageHeader } from "@/components/ui";
 import { prisma } from "@/lib/prisma";
 
 export const metadata = { title: "操作日志" };
-const actionNames: Record<string, string> = { SEED_DATABASE: "初始化数据", CREATE_SLOT: "创建车位", UPDATE_SLOT: "编辑车位", DELETE_SLOT: "删除车位", ADD_MEMBER: "添加车友", UPDATE_MEMBER: "编辑车友", DELETE_MEMBER: "删除车友", EXIT_MEMBER: "车友退出", MOVE_MEMBER: "车友换位", RENEW_MEMBER: "续费", VIEW_PASSWORD: "查看密码", UPDATE_SETTINGS: "修改设置", UPDATE_PLATFORM: "修改平台", CREATE_PLATFORM: "新增平台", DELETE_PLATFORM: "删除平台" };
-const detailNames: Record<string, string> = { email: "邮箱", nickname: "车友", slotNumber: "车位", slotId: "车位 ID", from: "原车位", to: "目标车位", seatNumber: "席位", oldDate: "原到期", newDate: "新到期", amount: "金额", status: "状态", defaultCapacity: "默认容量", values: "提醒天数", name: "名称", slug: "标识", icon: "图标" };
+const actionNames: Record<string, string> = { SEED_DATABASE: "初始化数据", CREATE_SLOT: "创建共享账号", UPDATE_SLOT: "编辑共享账号", DELETE_SLOT: "删除共享账号", ADD_MEMBER: "添加车友", UPDATE_MEMBER: "编辑车友", DELETE_MEMBER: "删除车友", EXIT_MEMBER: "车友退出", MOVE_MEMBER: "更换账号席位", RENEW_MEMBER: "续费", VIEW_PASSWORD: "查看密码", UPDATE_SETTINGS: "修改设置", UPDATE_PLATFORM: "修改平台", CREATE_PLATFORM: "新增平台", DELETE_PLATFORM: "删除平台" };
+const detailNames: Record<string, string> = { email: "登录账号", nickname: "车友", slotNumber: "账号编号", slotId: "账号 ID", from: "原账号", to: "目标账号", seatNumber: "席位", oldDate: "原到期", newDate: "新到期", amount: "金额", status: "状态", defaultCapacity: "默认席位数", values: "提醒天数", name: "名称", slug: "标识", icon: "图标" };
 
 function actionTone(action: string) {
   if (action.includes("DELETE")) return "danger" as const;

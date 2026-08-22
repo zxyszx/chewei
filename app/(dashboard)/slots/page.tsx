@@ -1,16 +1,18 @@
+import { Plus } from "lucide-react";
+import Link from "next/link";
 import { PageHeader } from "@/components/ui";
 import { SlotManager, type SlotItem } from "@/components/slot-manager";
 import { PlatformIcon } from "@/components/platform-icon";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-export const metadata = { title: "车位管理" };
+export const metadata = { title: "共享账号" };
 
 export default async function SlotsPage({ searchParams }: { searchParams: Promise<{ platform?: string; open?: string; create?: string }> }) {
   const params = await searchParams;
   const user = await requireUser();
   const [platforms, rows] = await Promise.all([
-    prisma.platform.findMany({ where: { status: "ACTIVE" }, orderBy: { createdAt: "asc" } }),
+    prisma.platform.findMany({ where: { status: "ACTIVE" }, include: { _count: { select: { parkingSlots: true } } }, orderBy: { createdAt: "asc" } }),
     prisma.parkingSlot.findMany({
       where: params.platform ? { platform: { slug: params.platform } } : undefined,
       include: { platform: true, members: { orderBy: { expireDate: "asc" } }, renewals: { include: { member: { select: { nickname: true } } }, orderBy: { createdAt: "desc" } } },
@@ -28,5 +30,13 @@ export default async function SlotsPage({ searchParams }: { searchParams: Promis
     platform: { id: slot.platform.id, name: slot.platform.name, slug: slot.platform.slug, icon: slot.platform.icon, defaultCapacity: slot.platform.defaultCapacity },
   })) as unknown as SlotItem[];
   const closeHref = params.platform ? `/slots?platform=${encodeURIComponent(params.platform)}` : "/slots";
-  return <div className="mx-auto max-w-[1800px] space-y-4"><PageHeader title={currentPlatform ? `${currentPlatform.name} · 车位管理` : "车位管理"} description={currentPlatform ? `管理 ${currentPlatform.name} 车位资源、成员与续费信息` : "管理所有平台的账号容量、车友与到期信息"} leading={currentPlatform ? <PlatformIcon slug={currentPlatform.slug} name={currentPlatform.name} icon={currentPlatform.icon} size={24} className="border border-[var(--border)]" /> : undefined} /><SlotManager key={`${params.platform || "all"}:${params.open || "closed"}:${params.create || "idle"}`} slots={slots} platforms={platforms.map((p) => ({ id: p.id, name: p.name, slug: p.slug, icon: p.icon, defaultCapacity: p.defaultCapacity }))} initialOpen={params.open} initialCreate={params.create === "1"} closeHref={closeHref} singlePlatform={Boolean(params.platform)} platformSlug={params.platform} canDelete={user.role === "ADMIN"} /></div>;
+  return <div className="mx-auto max-w-[1800px] space-y-4">
+    <PageHeader title={currentPlatform ? `${currentPlatform.name} · 共享账号` : "共享账号"} description={currentPlatform ? `集中管理 ${currentPlatform.name} 登录信息、成员席位与续费` : "账号、成员席位、密码与续费统一管理"} leading={currentPlatform ? <PlatformIcon slug={currentPlatform.slug} name={currentPlatform.name} icon={currentPlatform.icon} size={24} className="border border-[var(--border)]" /> : undefined} />
+    <nav className="platform-tabs" aria-label="共享账号工作表">
+      <Link href="/settings#platforms" className="platform-tab-add" aria-label="管理平台" title="管理平台"><Plus size={16} /></Link>
+      <Link href="/slots" scroll={false} aria-current={!params.platform ? "page" : undefined} className={!params.platform ? "platform-tab platform-tab-active" : "platform-tab"}>账号总表<span>{platforms.reduce((sum, item) => sum + item._count.parkingSlots, 0)}</span></Link>
+      {platforms.map((platform) => <Link key={platform.id} href={`/slots?platform=${encodeURIComponent(platform.slug)}`} scroll={false} aria-current={params.platform === platform.slug ? "page" : undefined} className={params.platform === platform.slug ? "platform-tab platform-tab-active" : "platform-tab"}><PlatformIcon slug={platform.slug} name={platform.name} icon={platform.icon} size={16} />{platform.name}<span>{platform._count.parkingSlots}</span></Link>)}
+    </nav>
+    <SlotManager key={`${params.platform || "all"}:${params.open || "closed"}:${params.create || "idle"}`} slots={slots} platforms={platforms.map((p) => ({ id: p.id, name: p.name, slug: p.slug, icon: p.icon, defaultCapacity: p.defaultCapacity }))} initialOpen={params.open} initialCreate={params.create === "1"} closeHref={closeHref} singlePlatform={Boolean(params.platform)} platformSlug={params.platform} canDelete={user.role === "ADMIN"} />
+  </div>;
 }
