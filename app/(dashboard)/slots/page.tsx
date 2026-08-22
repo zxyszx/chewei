@@ -1,6 +1,5 @@
 import { Plus } from "lucide-react";
 import Link from "next/link";
-import { PageHeader } from "@/components/ui";
 import { SlotManager, type SlotItem } from "@/components/slot-manager";
 import { PlatformIcon } from "@/components/platform-icon";
 import { requireUser } from "@/lib/auth";
@@ -19,7 +18,6 @@ export default async function SlotsPage({ searchParams }: { searchParams: Promis
       orderBy: [{ platform: { name: "asc" } }, { slotNumber: "asc" }],
     }),
   ]);
-  const currentPlatform = params.platform ? platforms.find((platform) => platform.slug === params.platform) : undefined;
   const slots: SlotItem[] = rows.map((slot) => ({
     ...slot,
     createdAt: undefined,
@@ -31,7 +29,6 @@ export default async function SlotsPage({ searchParams }: { searchParams: Promis
   })) as unknown as SlotItem[];
   const closeHref = params.platform ? `/slots?platform=${encodeURIComponent(params.platform)}` : "/slots";
   return <div className="mx-auto max-w-[1800px] space-y-4">
-    <PageHeader title={currentPlatform ? `${currentPlatform.name} · 合租车位` : "合租车位"} description={currentPlatform ? `集中管理 ${currentPlatform.name} 登录信息、成员席位与续费` : "各平台车位、成员席位、密码与续费统一管理"} leading={currentPlatform ? <PlatformIcon slug={currentPlatform.slug} name={currentPlatform.name} icon={currentPlatform.icon} size={24} className="border border-[var(--border)]" /> : undefined} />
     <nav className="platform-tabs" aria-label="合租车位工作表">
       <Link href="/settings#platforms" className="platform-tab-add" aria-label="管理平台" title="管理平台"><Plus size={16} /></Link>
       <Link href="/slots" scroll={false} aria-current={!params.platform ? "page" : undefined} className={!params.platform ? "platform-tab platform-tab-active" : "platform-tab"}>全部车位<span>{platforms.reduce((sum, item) => sum + item._count.parkingSlots, 0)}</span></Link>
