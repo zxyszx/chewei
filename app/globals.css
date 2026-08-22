@@ -61,6 +61,7 @@ button { cursor: pointer; }
 button:disabled { cursor: not-allowed; opacity: .55; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .login-field input:focus-visible { outline: none; }
+input[name="slot-filter-query"]:focus-visible { outline: none; }
 ::selection { background: var(--accent-soft); }
 
 .skip-link { position: fixed; left: 12px; top: -60px; z-index: 200; background: var(--surface); padding: 10px 14px; border: 1px solid var(--border); border-radius: 6px; }
