@@ -106,7 +106,7 @@ docker compose --env-file .env.production logs --tail=100 app
 { "status": "ok", "database": "connected" }
 ```
 
-然后访问 `http://服务器IP:3000`，使用 `.env.production` 中的管理员账号登录，验证新建共享账号、添加车友、续费和导出。该方式只用于临时测试；HTTP 无法保护登录密码，浏览器密码管理器也会显示安全警告。
+然后访问 `http://服务器IP:3000`，使用 `.env.production` 中的管理员账号登录，验证新建共享账号、添加车友、续费和 JSON 备份。该方式只用于临时测试；HTTP 无法保护登录密码，浏览器密码管理器也会显示安全警告。
 
 ## 6. 更新版本
 
