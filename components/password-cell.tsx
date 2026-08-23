@@ -1,7 +1,7 @@
 "use client";
 
 import { Eye, EyeOff } from "lucide-react";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { revealPasswordAction } from "@/app/actions";
 
@@ -9,6 +9,17 @@ export function PasswordCell({ slotId }: { slotId: string }) {
   const [password, setPassword] = useState("");
   const [visible, setVisible] = useState(false);
   const [pending, startTransition] = useTransition();
+  useEffect(() => {
+    const reset = (event: Event) => {
+      const detail = (event as CustomEvent<{ slotId?: string }>).detail;
+      if (!detail?.slotId || detail.slotId === slotId) {
+        setPassword("");
+        setVisible(false);
+      }
+    };
+    window.addEventListener("parking-password-updated", reset);
+    return () => window.removeEventListener("parking-password-updated", reset);
+  }, [slotId]);
   const reveal = () => startTransition(async () => {
     if (password) { setVisible(true); return; }
     const result = await revealPasswordAction(slotId);

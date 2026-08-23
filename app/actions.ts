@@ -232,6 +232,7 @@ const memberFields = z.object({
   slotId: z.string().min(1),
   nickname: z.string().min(1).max(80),
   contact: z.string().min(1).max(160),
+  contactType: z.enum(["WECHAT", "TELEGRAM", "N"]),
   startDate: z.string().date(),
   expireDate: z.string().date(),
   note: z.string().max(2000).optional(),
@@ -257,7 +258,7 @@ const memberSchema = memberFields
   .extend({
     months: z.coerce.number().int().min(1).max(120),
     amount: z.coerce.number().min(0),
-    paymentMethod: z.enum(["WECHAT", "ALIPAY", "CARD", "CASH", "OTHER"]),
+    paymentMethod: z.enum(["WECHAT", "ALIPAY", "CRYPTO"]),
   })
   .superRefine(validateMemberDates);
 
@@ -306,6 +307,7 @@ export async function addMemberAction(
             seatNumber,
             nickname: parsed.data.nickname,
             contact: parsed.data.contact,
+            contactType: parsed.data.contactType,
             startDate: date(parsed.data.startDate),
             expireDate: date(parsed.data.expireDate),
             note: parsed.data.note,
@@ -400,7 +402,7 @@ const renewSchema = z
     months: z.coerce.number().int().min(0).max(120),
     newExpireDate: z.string().optional(),
     amount: z.coerce.number().min(0),
-    paymentMethod: z.enum(["WECHAT", "ALIPAY", "CARD", "CASH", "OTHER"]),
+    paymentMethod: z.enum(["WECHAT", "ALIPAY", "CRYPTO"]),
     note: z.string().max(2000).optional(),
   })
   .superRefine((data, context) => {

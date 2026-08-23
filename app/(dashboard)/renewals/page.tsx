@@ -1,19 +1,16 @@
 import { format } from "date-fns";
-import { Download, Search, X } from "lucide-react";
+import { Search, X } from "lucide-react";
 import Link from "next/link";
 import { PlatformIcon } from "@/components/platform-icon";
 import { Badge, PageHeader } from "@/components/ui";
+import {
+  currentPaymentMethods,
+  isPaymentMethod,
+  paymentMethodLabels,
+} from "@/lib/payment-methods";
 import { prisma } from "@/lib/prisma";
 
 export const metadata = { title: "续费记录" };
-const payment: Record<string, string> = {
-  WECHAT: "微信",
-  ALIPAY: "支付宝",
-  CARD: "信用卡",
-  CASH: "现金",
-  OTHER: "其他",
-};
-const paymentMethods = Object.keys(payment);
 const localDate = (value: string, end = false) =>
   new Date(`${value}T${end ? "23:59:59.999" : "00:00:00"}+08:00`);
 
@@ -37,8 +34,8 @@ export default async function RenewalsPage({
     from = "",
     to = "",
   } = await searchParams;
-  const validMethod = paymentMethods.includes(method)
-    ? (method as "WECHAT" | "ALIPAY" | "CARD" | "CASH" | "OTHER")
+  const validMethod = isPaymentMethod(method)
+    ? method
     : undefined;
   const [platforms, slots, renewals] = await Promise.all([
     prisma.platform.findMany({ orderBy: { name: "asc" } }),
@@ -77,18 +74,11 @@ export default async function RenewalsPage({
     }),
   ]);
   const filtered = Boolean(q || platform || slot || method || from || to);
-  const exportHref = `/api/export/renewals?${new URLSearchParams({ ...(q ? { q } : {}), ...(platform ? { platform } : {}), ...(slot ? { slot } : {}), ...(method ? { payment: method } : {}), ...(from ? { from } : {}), ...(to ? { to } : {}) }).toString()}`;
   return (
     <div className="mx-auto max-w-[1800px] space-y-4">
       <PageHeader
         title="续费记录"
         description="每次续费独立留档，不覆盖历史"
-        actions={
-          <a href={exportHref} className="btn">
-            <Download size={15} />
-            导出 Excel
-          </a>
-        }
       />
       <section className="panel overflow-hidden">
         <form className="toolbar border-b border-[var(--border)] px-4 py-3">
@@ -135,7 +125,7 @@ export default async function RenewalsPage({
             defaultValue={method}
           >
             <option value="">全部付款方式</option>
-            {Object.entries(payment).map(([value, label]) => (
+            {currentPaymentMethods.map(({ value, label }) => (
               <option key={value} value={value}>
                 {label}
               </option>
@@ -226,7 +216,7 @@ export default async function RenewalsPage({
                   </td>
                   <td>
                     <Badge tone="neutral">
-                      {payment[record.paymentMethod]}
+                      {paymentMethodLabels[record.paymentMethod] || record.paymentMethod}
                     </Badge>
                   </td>
                   <td>{record.operator.username}</td>

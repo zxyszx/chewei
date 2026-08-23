@@ -22,6 +22,7 @@ enum RecordStatus {
 enum PaymentMethod {
   WECHAT
   ALIPAY
+  CRYPTO
   CARD
   CASH
   OTHER
@@ -42,64 +43,65 @@ model Platform {
 }
 
 model ParkingSlot {
-  id                String          @id @default(cuid())
+  id                String       @id @default(cuid())
   platformId        String
-  platform          Platform        @relation(fields: [platformId], references: [id], onDelete: Restrict)
+  platform          Platform     @relation(fields: [platformId], references: [id], onDelete: Restrict)
   slotNumber        Int
-  accountEmail      String          @unique
+  accountEmail      String       @unique
   encryptedPassword String
   cardLast4         String?
   billingDay        Int
   capacity          Int
-  status            RecordStatus    @default(ACTIVE)
+  status            RecordStatus @default(ACTIVE)
   note              String?
   members           Member[]
   renewals          Renewal[]
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
 
-  @@index([platformId])
   @@unique([platformId, slotNumber])
+  @@index([platformId])
   @@map("parking_slots")
 }
 
 model Member {
-  id         String       @id @default(cuid())
-  slotId     String
-  slot       ParkingSlot  @relation(fields: [slotId], references: [id], onDelete: Restrict)
-  nickname   String
-  contact    String
-  startDate  DateTime     @db.Date
-  expireDate DateTime     @db.Date
-  status     RecordStatus @default(ACTIVE)
-  seatNumber Int?
-  note       String?
-  renewals   Renewal[]
-  createdAt  DateTime     @default(now())
-  updatedAt  DateTime     @updatedAt
+  id          String       @id @default(cuid())
+  slotId      String
+  slot        ParkingSlot  @relation(fields: [slotId], references: [id], onDelete: Restrict)
+  nickname    String
+  contact     String
+  contactType String       @default("WECHAT")
+  startDate   DateTime     @db.Date
+  expireDate  DateTime     @db.Date
+  status      RecordStatus @default(ACTIVE)
+  seatNumber  Int?
+  note        String?
+  renewals    Renewal[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 
+  @@unique([slotId, seatNumber])
   @@index([contact])
   @@index([expireDate])
   @@index([slotId])
-  @@unique([slotId, seatNumber])
   @@map("members")
 }
 
 model Renewal {
-  id              String        @id @default(cuid())
-  memberId        String
-  member          Member        @relation(fields: [memberId], references: [id], onDelete: Restrict)
-  slotId          String
-  slot            ParkingSlot   @relation(fields: [slotId], references: [id], onDelete: Restrict)
-  oldExpireDate   DateTime       @db.Date
-  newExpireDate   DateTime       @db.Date
-  months          Int?
-  amount          Decimal       @db.Decimal(10, 2)
-  paymentMethod   PaymentMethod
-  note            String?
-  operatorId      String
-  operator        User          @relation(fields: [operatorId], references: [id], onDelete: Restrict)
-  createdAt       DateTime       @default(now())
+  id            String        @id @default(cuid())
+  memberId      String
+  member        Member        @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  slotId        String
+  slot          ParkingSlot   @relation(fields: [slotId], references: [id], onDelete: Restrict)
+  oldExpireDate DateTime      @db.Date
+  newExpireDate DateTime      @db.Date
+  months        Int?
+  amount        Decimal       @db.Decimal(10, 2)
+  paymentMethod PaymentMethod
+  note          String?
+  operatorId    String
+  operator      User          @relation(fields: [operatorId], references: [id], onDelete: Restrict)
+  createdAt     DateTime      @default(now())
 
   @@index([createdAt])
   @@index([memberId])

@@ -12,7 +12,7 @@ export function FormDialog({ open, title, description, onClose, children, width 
     if (!open && dialog.current?.open) dialog.current.close();
   }, [open]);
   return (
-    <dialog ref={dialog} aria-labelledby={titleId} aria-describedby={description ? descriptionId : undefined} onCancel={(event) => { event.preventDefault(); onClose(); }} onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }} className="m-auto max-h-[90dvh] w-[calc(100%-24px)] overflow-hidden rounded-[8px] border border-[var(--border)] bg-[var(--surface)] p-0 text-[var(--foreground)] shadow-2xl backdrop:bg-black/35" style={{ maxWidth: width }}>
+    <dialog ref={dialog} lang="zh-CN" aria-labelledby={titleId} aria-describedby={description ? descriptionId : undefined} onKeyDownCapture={(event) => { if (event.nativeEvent.isComposing) event.stopPropagation(); }} onCancel={(event) => { event.preventDefault(); onClose(); }} onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }} className="m-auto max-h-[90dvh] w-[calc(100%-24px)] overflow-hidden rounded-[8px] border border-[var(--border)] bg-[var(--surface)] p-0 text-[var(--foreground)] shadow-2xl backdrop:bg-black/35" style={{ maxWidth: width }}>
       <div className="flex items-start justify-between border-b border-[var(--border)] px-5 py-4">
         <div><h2 id={titleId} className="text-[16px] font-semibold">{title}</h2>{description && <p id={descriptionId} className="mt-1 text-[12px] text-[var(--muted-foreground)]">{description}</p>}</div>
         <button type="button" className="btn icon-btn -mr-1 -mt-1" aria-label="关闭" title="关闭" onClick={onClose}><X size={17} /></button>

@@ -24,7 +24,6 @@
     "clsx": "latest",
     "date-fns": "latest",
     "dotenv": "latest",
-    "exceljs": "latest",
     "lucide-react": "latest",
     "next": "latest",
     "pg": "latest",

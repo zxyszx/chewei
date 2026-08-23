@@ -1,0 +1,7 @@
+ALTER TYPE "PaymentMethod" ADD VALUE IF NOT EXISTS 'CRYPTO';
+
+ALTER TABLE "members" ADD COLUMN IF NOT EXISTS "contactType" TEXT NOT NULL DEFAULT 'WECHAT';
+
+UPDATE "members"
+SET "contactType" = 'TELEGRAM'
+WHERE "contact" LIKE '@%';

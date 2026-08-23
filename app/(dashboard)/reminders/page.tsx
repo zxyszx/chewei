@@ -1,5 +1,6 @@
 import { format } from "date-fns";
 import Link from "next/link";
+import { ContactValue } from "@/components/contact-method";
 import { PlatformIcon } from "@/components/platform-icon";
 import { RenewButton } from "@/components/renew-button";
 import type { MemberItem } from "@/components/slot-manager";
@@ -86,6 +87,7 @@ export default async function RemindersPage({
                   id: member.id,
                   nickname: member.nickname,
                   contact: member.contact,
+                  contactType: member.contactType,
                   startDate: member.startDate.toISOString(),
                   expireDate: member.expireDate.toISOString(),
                   status: member.status,
@@ -113,7 +115,7 @@ export default async function RemindersPage({
                         #{member.slot.slotNumber}
                       </Link>
                     </td>
-                    <td>{member.contact}</td>
+                    <td><ContactValue type={member.contactType} value={member.contact} /></td>
                     <td className="tabular">
                       {format(member.expireDate, "yyyy.MM.dd")}
                     </td>

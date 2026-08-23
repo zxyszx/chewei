@@ -10,7 +10,7 @@
 - 车友添加、满员限制、退出、续费及历史留档
 - 跨平台车友管理、到期提醒和全局 `Command/Ctrl + K` 搜索
 - 共享账号、成员席位、续费记录、数据统计和操作日志
-- 共享账号 CSV、续费 Excel、全量 JSON 备份
+- 全量 JSON 数据备份
 - `admin` / `operator` 后端权限预留
 - Docker Compose + PostgreSQL 一键部署、备份、更新与回滚
 
@@ -19,7 +19,7 @@
 - Next.js、React、TypeScript、Tailwind CSS
 - Prisma ORM、PostgreSQL
 - React Hook Form、Zod、date-fns
-- Recharts、ExcelJS、Lucide Icons
+- Recharts、Lucide Icons
 - Vitest、ESLint
 
 ## 本地开发

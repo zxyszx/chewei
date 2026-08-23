@@ -12,6 +12,7 @@ import {
   UsersRound,
 } from "lucide-react";
 import Link from "next/link";
+import { ContactValue } from "@/components/contact-method";
 import { PlatformIcon } from "@/components/platform-icon";
 import { RenewButton } from "@/components/renew-button";
 import type { MemberItem } from "@/components/slot-manager";
@@ -396,6 +397,7 @@ export default async function OverviewPage() {
                 id: member.id,
                 nickname: member.nickname,
                 contact: member.contact,
+                contactType: member.contactType,
                 startDate: member.startDate.toISOString(),
                 expireDate: member.expireDate.toISOString(),
                 status: member.status,
@@ -418,7 +420,7 @@ export default async function OverviewPage() {
                   </Link>
                   <div className="mt-3 flex items-center justify-between gap-2">
                     <p className="min-w-0 truncate text-[11px] text-[#687386]">
-                      {member.contact}
+                      <ContactValue type={member.contactType} value={member.contact} />
                     </p>
                     <RenewButton member={item} compact />
                   </div>
