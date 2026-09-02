@@ -5,8 +5,10 @@ RUN npm ci --ignore-scripts
 
 FROM node:24-alpine AS builder
 WORKDIR /app
+ARG NEXT_SERVER_ACTIONS_ENCRYPTION_KEY
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV DATABASE_URL=postgresql://parking:build-only@db:5432/parking_manager
+ENV NEXT_SERVER_ACTIONS_ENCRYPTION_KEY=${NEXT_SERVER_ACTIONS_ENCRYPTION_KEY}
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY . .
 RUN npm run postinstall && npm run build
@@ -28,4 +30,4 @@ COPY --from=builder /app/package.json ./package.json
 RUN chown -R nextjs:nodejs /app
 USER nextjs
 EXPOSE 3000
-CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy && node server.js"]
+CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy && npm run db:bootstrap && node server.js"]

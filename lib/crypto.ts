@@ -27,3 +27,7 @@ export function decryptSecret(payload: string) {
 export function hashToken(value: string) {
   return createHash("sha256").update(value).digest("hex");
 }
+
+export function encryptionKeyFingerprint() {
+  return createHash("sha256").update(encryptionKey()).digest("hex").slice(0, 16);
+}

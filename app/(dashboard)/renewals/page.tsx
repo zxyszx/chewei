@@ -1,6 +1,8 @@
 import { format } from "date-fns";
 import { Search, X } from "lucide-react";
 import Link from "next/link";
+import type { Prisma } from "@/generated/prisma/client";
+import { Pagination } from "@/components/pagination";
 import { PlatformIcon } from "@/components/platform-icon";
 import { Badge, PageHeader } from "@/components/ui";
 import {
@@ -24,6 +26,7 @@ export default async function RenewalsPage({
     payment?: string;
     from?: string;
     to?: string;
+    page?: string;
   }>;
 }) {
   const {
@@ -33,45 +36,35 @@ export default async function RenewalsPage({
     payment: method = "",
     from = "",
     to = "",
+    page: pageParam = "1",
   } = await searchParams;
+  const page = Math.max(1, Number.parseInt(pageParam, 10) || 1); const pageSize = 100;
   const validMethod = isPaymentMethod(method)
     ? method
     : undefined;
-  const [platforms, slots, renewals] = await Promise.all([
+  const where: Prisma.RenewalWhereInput = {
+    ...(q ? { OR: [{ member: { nickname: { contains: q, mode: "insensitive" } } }, { member: { contact: { contains: q, mode: "insensitive" } } }] } : {}),
+    ...(platform ? { slot: { platform: { slug: platform } } } : {}),
+    ...(slot ? { slotId: slot } : {}),
+    ...(validMethod ? { paymentMethod: validMethod } : {}),
+    ...(from || to ? { createdAt: { ...(from ? { gte: localDate(from) } : {}), ...(to ? { lte: localDate(to, true) } : {}) } } : {}),
+  };
+  const [platforms, slots, renewals, total] = await Promise.all([
     prisma.platform.findMany({ orderBy: { name: "asc" } }),
     prisma.parkingSlot.findMany({
       include: { platform: true },
       orderBy: [{ platform: { name: "asc" } }, { slotNumber: "asc" }],
     }),
     prisma.renewal.findMany({
-      where: {
-        ...(q
-          ? {
-              OR: [
-                { member: { nickname: { contains: q, mode: "insensitive" } } },
-                { member: { contact: { contains: q, mode: "insensitive" } } },
-              ],
-            }
-          : {}),
-        ...(platform ? { slot: { platform: { slug: platform } } } : {}),
-        ...(slot ? { slotId: slot } : {}),
-        ...(validMethod ? { paymentMethod: validMethod } : {}),
-        ...(from || to
-          ? {
-              createdAt: {
-                ...(from ? { gte: localDate(from) } : {}),
-                ...(to ? { lte: localDate(to, true) } : {}),
-              },
-            }
-          : {}),
-      },
+      where,
       include: {
         member: true,
         slot: { include: { platform: true } },
         operator: true,
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: { createdAt: "desc" }, skip: (page - 1) * pageSize, take: pageSize,
     }),
+    prisma.renewal.count({ where }),
   ]);
   const filtered = Boolean(q || platform || slot || method || from || to);
   return (
@@ -163,7 +156,7 @@ export default async function RenewalsPage({
             </Link>
           )}
         </form>
-        <div className="data-wrap">
+        <div className="data-wrap responsive-table-desktop">
           <table className="data-table">
             <thead>
               <tr>
@@ -229,6 +222,8 @@ export default async function RenewalsPage({
           </table>
           {!renewals.length && <div className="empty">暂无续费记录</div>}
         </div>
+        <div className="mobile-record-list">{renewals.map((record) => <article className="mobile-record" key={record.id}><div className="flex items-start justify-between gap-3"><div><strong>{record.member.nickname}</strong><div className="mt-1 flex items-center gap-2 text-[12px] text-[var(--muted-foreground)]"><PlatformIcon slug={record.slot.platform.slug} name={record.slot.platform.name} icon={record.slot.platform.icon} size={15} />{record.slot.platform.name} #{record.slot.slotNumber}</div></div><strong className="whitespace-nowrap text-[15px] tabular">¥ {record.amount.toFixed(2)}</strong></div><dl className="mt-3 grid grid-cols-[76px_minmax(0,1fr)] gap-y-2 text-[12px]"><dt className="mobile-record-label">续费时间</dt><dd className="tabular">{format(record.createdAt, "yyyy.MM.dd HH:mm")}</dd><dt className="mobile-record-label">有效期</dt><dd className="tabular">{format(record.oldExpireDate, "yyyy.MM.dd")} → {format(record.newExpireDate, "yyyy.MM.dd")}</dd><dt className="mobile-record-label">支付方式</dt><dd><Badge tone="neutral">{paymentMethodLabels[record.paymentMethod] || record.paymentMethod}</Badge></dd><dt className="mobile-record-label">操作人</dt><dd>{record.operator.username}</dd>{record.note && <><dt className="mobile-record-label">备注</dt><dd>{record.note}</dd></>}</dl><Link className="btn mt-3 min-h-9 w-full text-[12px]" href={`/slots?open=${record.slotId}`}>查看合租车位</Link></article>)}{!renewals.length && <div className="empty">暂无续费记录</div>}</div>
+        <Pagination page={page} total={total} pageSize={pageSize} pathname="/renewals" params={{ q, platform, slot, payment: method, from, to }} />
       </section>
     </div>
   );

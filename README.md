@@ -10,9 +10,9 @@
 - 车友添加、满员限制、退出、续费及历史留档
 - 跨平台车友管理、到期提醒和全局 `Command/Ctrl + K` 搜索
 - 共享账号、成员席位、续费记录、数据统计和操作日志
-- 全量 JSON 数据备份
+- 完整 JSON 备份与事务恢复（含加密账号数据）
 - `admin` / `operator` 后端权限预留
-- Docker Compose + PostgreSQL 一键部署、备份、更新与回滚
+- Docker Compose + PostgreSQL 一键部署、备份恢复与网页更新
 
 ## 技术栈
 
@@ -24,7 +24,7 @@
 
 ## 本地开发
 
-要求 Node.js 20.9+ 和 PostgreSQL 15+。
+要求 Node.js 22.18+ 和 PostgreSQL 15+。服务器一键安装使用内置的 Node.js 24 容器，不需要在宿主机另行安装 Node.js。
 
 ```bash
 cp .env.example .env
@@ -48,9 +48,10 @@ npm run dev
 | `DATABASE_URL`          | PostgreSQL 连接地址                                           |
 | `AUTH_SECRET`           | 登录会话密钥，至少 32 位                                      |
 | `ENCRYPTION_KEY`        | 账号密码 AES-256-GCM 密钥，64 位十六进制                      |
-| `ADMIN_USERNAME`        | Seed 创建的管理员账号                                         |
-| `ADMIN_PASSWORD`        | Seed 创建的管理员密码                                         |
-| `SESSION_COOKIE_SECURE` | 直接使用 HTTP IP 测试时设为 `false`；启用 HTTPS 后设为 `true` |
+| `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` | 固定 Server Action 加密密钥，32 字节 Base64       |
+| `ADMIN_USERNAME`        | 首次容器启动时创建的管理员账号                           |
+| `ADMIN_PASSWORD`        | 首次容器启动时创建的管理员密码                           |
+| `SESSION_COOKIE_SECURE` | 留空时根据 1Panel 的 `X-Forwarded-Proto` 自动判断       |
 | `TZ`                    | 时区，推荐 `Asia/Shanghai`                                    |
 
 生成生产密钥：
@@ -73,13 +74,13 @@ npm run build
 
 ```bash
 chmod +x install.sh
-./install.sh install
+sudo ./install.sh install
 ```
 
-脚本提供三种 Web 模式：自动 Nginx + SSL、1Panel/宝塔/已有 Nginx 反代、仅 HTTP 测试。已安装环境更新时执行：
+脚本只启动容器和端口，不绑定域名、不修改 Nginx、不申请证书。在 1Panel 中反向代理到 `http://127.0.0.1:3000` 即可。已安装环境可在系统设置页更新，也可执行：
 
 ```bash
 ./install.sh update
 ```
 
-生产部署、备份和回滚说明见 [DEPLOYMENT.md](./DEPLOYMENT.md)。
+生产部署、备份和恢复说明见 [DEPLOYMENT.md](./DEPLOYMENT.md)。

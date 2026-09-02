@@ -4,15 +4,13 @@ set -Eeuo pipefail
 INSTALL_DIR="${PARKING_INSTALL_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 ENV_FILE="${INSTALL_DIR}/.env.production"
 STATE_DIR="${INSTALL_DIR}/.deploy"
-BACKUP_DIR="${PARKING_BACKUP_DIR:-/root/backups}"
-NGINX_CONFIG="/etc/nginx/conf.d/parking-space-manager.conf"
-ACME_ROOT="/var/www/parking-acme"
-CERT_DIR="/etc/nginx/ssl/parking-space-manager"
+CONTROL_DIR="${INSTALL_DIR}/data/control"
+BACKUP_DIR="${PARKING_BACKUP_DIR:-${INSTALL_DIR}/backups}"
+SERVICE_NAME="parking-space-manager-update"
 
 log() { printf '[车位系统] %s\n' "$*"; }
 warn() { printf '[警告] %s\n' "$*" >&2; }
 fail() { printf '[错误] %s\n' "$*" >&2; exit 1; }
-
 require_command() { command -v "$1" >/dev/null 2>&1 || fail "缺少命令：$1"; }
 require_env() { [[ -s "${ENV_FILE}" ]] || fail "缺少 ${ENV_FILE}，请先执行 ./install.sh install"; }
 compose() { docker compose --env-file "${ENV_FILE}" "$@"; }
@@ -21,8 +19,7 @@ set_env() {
   local key="$1" value="$2" tmp
   tmp="$(mktemp)"
   awk -v key="${key}" -v value="${value}" 'BEGIN{done=0} $0 ~ "^" key "=" {print key "=" value; done=1; next} {print} END{if(!done) print key "=" value}' "${ENV_FILE}" > "${tmp}"
-  install -m 0600 "${tmp}" "${ENV_FILE}"
-  rm -f "${tmp}"
+  install -m 0600 "${tmp}" "${ENV_FILE}"; rm -f "${tmp}"
 }
 
 ensure_docker() {
@@ -31,229 +28,158 @@ ensure_docker() {
   docker info >/dev/null 2>&1 || fail "Docker 未运行或当前用户没有访问权限"
 }
 
+app_port() { local value; value="$(awk -F= '$1=="APP_PORT"{print $2}' "${ENV_FILE}" | tail -n 1)"; printf '%s' "${value##*:}"; }
 wait_for_health() {
-  local attempts="${1:-60}"
+  local attempts="${1:-60}" port; port="$(app_port)"
   for ((i=1; i<=attempts; i++)); do
-    if curl -fsS --max-time 3 http://127.0.0.1:3000/api/health >/dev/null 2>&1; then return 0; fi
+    curl -fsS --max-time 3 "http://127.0.0.1:${port}/api/health" >/dev/null 2>&1 && return 0
     sleep 2
   done
   return 1
 }
 
 backup_database() {
-  require_env
-  ensure_docker
-  install -d -m 0700 "${BACKUP_DIR}"
-  local timestamp destination
-  timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
-  destination="${BACKUP_DIR}/parking-${timestamp}.dump"
+  require_env; ensure_docker; install -d -m 0700 "${BACKUP_DIR}"
+  local destination; destination="${BACKUP_DIR}/parking-$(date -u +%Y%m%dT%H%M%SZ).dump"
   compose exec -T db pg_dump -U parking -d parking_manager -Fc > "${destination}"
   [[ -s "${destination}" ]] || fail "数据库备份为空"
   compose exec -T db pg_restore -l < "${destination}" >/dev/null || fail "数据库备份校验失败"
-  chmod 0600 "${destination}"
-  printf '%s\n' "${destination}"
+  chmod 0600 "${destination}"; printf '%s\n' "${destination}"
 }
 
 deploy() {
-  require_env
-  ensure_docker
-  require_command curl
-  install -d -m 0700 "${STATE_DIR}"
-
-  local backup="" old_image="" rollback_tag=""
-  if compose ps --status running -q db | grep -q .; then
-    log "正在备份并校验数据库..."
-    backup="$(backup_database)"
-    printf '%s\n' "${backup}" > "${STATE_DIR}/last-backup"
-    log "备份完成：${backup}"
-  fi
+  require_env; ensure_docker; require_command curl; install -d -m 0700 "${STATE_DIR}"
+  local backup="" old_image="" rollback_tag="" app_was_running=false
+  compose ps --status running -q app | grep -q . && app_was_running=true
   old_image="$(compose images -q app 2>/dev/null | head -n 1 || true)"
   if [[ -n "${old_image}" ]]; then
     rollback_tag="parking-space-manager-app:rollback-$(date -u +%Y%m%dT%H%M%SZ)"
-    docker tag "${old_image}" "${rollback_tag}"
-    printf '%s\n' "${rollback_tag}" > "${STATE_DIR}/last-rollback-image"
+    docker tag "${old_image}" "${rollback_tag}"; printf '%s\n' "${rollback_tag}" > "${STATE_DIR}/last-rollback-image"
   fi
-
-  log "正在构建新镜像，现有服务会继续运行..."
+  log "正在构建新版本，现有服务会继续运行..."
   compose build app
-  log "正在应用数据库迁移..."
-  compose run --rm app ./node_modules/.bin/prisma migrate deploy
-  log "正在切换应用容器..."
-  compose up -d --remove-orphans app
-  if wait_for_health 60; then
-    log "更新完成，健康检查通过。"
-    compose ps
-    return 0
+  if compose ps --status running -q db | grep -q .; then
+    [[ "${app_was_running}" == true ]] && compose stop app
+    log "正在备份并校验数据库..."; backup="$(backup_database)"; printf '%s\n' "${backup}" > "${STATE_DIR}/last-backup"
   fi
-
-  warn "新版本健康检查失败。"
+  if ! compose run --rm app sh -c './node_modules/.bin/prisma migrate deploy && npm run db:bootstrap'; then
+    warn "数据库迁移或初始化失败，正在恢复更新前状态。"
+    if [[ -n "${backup}" ]]; then compose exec -T db pg_restore -U parking -d parking_manager --clean --if-exists < "${backup}"; fi
+    if [[ -n "${rollback_tag}" ]]; then docker tag "${rollback_tag}" parking-space-manager-app:latest; fi
+    [[ "${app_was_running}" == true ]] && compose up -d --no-build app
+    fail "更新未完成，应用和数据库已恢复"
+  fi
+  compose up -d --remove-orphans app
+  if wait_for_health 60; then log "更新完成，健康检查通过。"; compose ps; return 0; fi
   compose logs --tail=120 app >&2 || true
   if [[ -n "${rollback_tag}" ]]; then
-    warn "正在恢复更新前镜像；数据库备份保留在 ${backup:-${BACKUP_DIR}}。"
-    docker tag "${rollback_tag}" parking-space-manager-app:latest
-    compose up -d --no-build app
-    wait_for_health 30 || fail "旧镜像恢复后仍未通过健康检查，请执行 ./install.sh logs"
+    warn "新版本检查失败，正在恢复旧镜像和数据库。"
+    compose stop app
+    if [[ -n "${backup}" ]]; then compose exec -T db pg_restore -U parking -d parking_manager --clean --if-exists < "${backup}"; fi
+    docker tag "${rollback_tag}" parking-space-manager-app:latest; compose up -d --no-build app
+    wait_for_health 30 || fail "旧镜像恢复后仍未通过检查"
   fi
-  fail "更新未完成，已恢复旧应用镜像"
+  fail "更新未完成，数据库备份已保留"
 }
 
 configure_env() {
   [[ ! -e "${ENV_FILE}" ]] || return 0
   local username password confirm
-  read -r -p '管理员账号 [admin]: ' username </dev/tty
-  username="${username:-admin}"
+  read -r -p '管理员账号 [admin]: ' username </dev/tty; username="${username:-admin}"
   while true; do
-    read -r -s -p '管理员密码（至少 10 位）: ' password </dev/tty
-    printf '\n' >/dev/tty
+    read -r -s -p '管理员密码（至少 10 位）: ' password </dev/tty; printf '\n' >/dev/tty
     [[ ${#password} -ge 10 ]] || { warn "密码至少 10 位"; continue; }
-    read -r -s -p '再次输入管理员密码: ' confirm </dev/tty
-    printf '\n' >/dev/tty
-    [[ "${password}" == "${confirm}" ]] && break
-    warn "两次密码不一致"
+    read -r -s -p '再次输入管理员密码: ' confirm </dev/tty; printf '\n' >/dev/tty
+    [[ "${password}" == "${confirm}" ]] && break; warn "两次密码不一致"
   done
   umask 077
   {
     printf 'POSTGRES_PASSWORD=%s\n' "$(openssl rand -hex 24)"
     printf 'AUTH_SECRET=%s\n' "$(openssl rand -base64 48 | tr -d '\n')"
     printf 'ENCRYPTION_KEY=%s\n' "$(openssl rand -hex 32)"
-    printf 'ADMIN_USERNAME=%s\n' "${username}"
-    printf 'ADMIN_PASSWORD=%s\n' "${password}"
-    printf 'SESSION_COOKIE_SECURE=false\n'
-    printf 'APP_PORT=3000\n'
+    printf 'NEXT_SERVER_ACTIONS_ENCRYPTION_KEY=%s\n' "$(openssl rand -base64 32 | tr -d '\n')"
+    printf 'ADMIN_USERNAME=%s\nADMIN_PASSWORD=%s\n' "${username}" "${password}"
+    printf 'SESSION_COOKIE_SECURE=\nAPP_PORT=3000\nUPDATE_REPOSITORY=zxyszx/parking-space-manager\nUPDATE_BRANCH=main\n'
   } > "${ENV_FILE}"
   chmod 0600 "${ENV_FILE}"
 }
 
-write_proxy_example() {
-  local domain="$1"
-  cat > "${INSTALL_DIR}/reverse-proxy.conf" <<EOF
-server {
-    listen 80;
-    server_name ${domain};
-    return 301 https://\$host\$request_uri;
+ensure_deployment_env() {
+  require_env; require_command openssl
+  grep -q '^NEXT_SERVER_ACTIONS_ENCRYPTION_KEY=.' "${ENV_FILE}" || set_env NEXT_SERVER_ACTIONS_ENCRYPTION_KEY "$(openssl rand -base64 32 | tr -d '\n')"
 }
 
-server {
-    listen 443 ssl http2;
-    server_name ${domain};
-
-    # 证书路径由 1Panel、宝塔或现有 Nginx 管理。
-    ssl_certificate /path/to/fullchain.pem;
-    ssl_certificate_key /path/to/privkey.pem;
-
-    location / {
-        proxy_pass http://127.0.0.1:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Host \$http_host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto https;
-        proxy_set_header X-Forwarded-Port 443;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_read_timeout 60s;
-        proxy_buffering off;
-    }
-}
-EOF
-  log "反代示例已生成：${INSTALL_DIR}/reverse-proxy.conf"
-}
-
-configure_auto_nginx() {
-  local domain="$1"
-  [[ $EUID -eq 0 ]] || fail "自动 Nginx + SSL 模式需要 root 权限"
-  if ss -lntp 2>/dev/null | grep -Eq ':(80|443)[[:space:]]' && ! command -v nginx >/dev/null 2>&1; then
-    fail "80/443 已被其他服务占用，请使用模式 2（已有 Nginx/1Panel 反代）"
+configure_web_updater() {
+  install -d -m 0750 "${CONTROL_DIR}"; chown 1001:1001 "${CONTROL_DIR}" 2>/dev/null || true
+  set_env APP_COMMIT_SHA "$(git rev-parse HEAD 2>/dev/null || printf unknown)"
+  if [[ ${EUID} -ne 0 ]] || ! command -v systemctl >/dev/null 2>&1; then
+    set_env WEB_UPDATE_ENABLED false; warn "非 root 或无 systemd：网页更新按钮将禁用，命令行更新仍可用。"; return
   fi
-  require_command nginx
-  install -d -m 0755 "${ACME_ROOT}/.well-known/acme-challenge" "${CERT_DIR}"
-  cat > "${NGINX_CONFIG}" <<EOF
-server {
-    listen 80;
-    listen [::]:80;
-    server_name ${domain};
-    location ^~ /.well-known/acme-challenge/ { root ${ACME_ROOT}; }
-    location / { proxy_pass http://127.0.0.1:3000; proxy_set_header Host \$host; proxy_set_header X-Real-IP \$remote_addr; proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto \$scheme; }
-}
+  cat > "/etc/systemd/system/${SERVICE_NAME}.service" <<EOF
+[Unit]
+Description=Parking Space Manager controlled updater
+After=docker.service network-online.target
+[Service]
+Type=oneshot
+WorkingDirectory=${INSTALL_DIR}
+ExecStart=${INSTALL_DIR}/install.sh process-update
 EOF
-  nginx -t
-  systemctl reload nginx
-  if [[ ! -x /root/.acme.sh/acme.sh ]]; then
-    curl -fsSL https://get.acme.sh | sh -s email="hostmaster@${domain}"
-  fi
-  /root/.acme.sh/acme.sh --issue --server letsencrypt --keylength ec-256 -d "${domain}" --webroot "${ACME_ROOT}"
-  /root/.acme.sh/acme.sh --install-cert --ecc -d "${domain}" --fullchain-file "${CERT_DIR}/fullchain.pem" --key-file "${CERT_DIR}/privkey.pem" --reloadcmd "nginx -t && systemctl reload nginx"
-  cat > "${NGINX_CONFIG}" <<EOF
-server { listen 80; listen [::]:80; server_name ${domain}; location ^~ /.well-known/acme-challenge/ { root ${ACME_ROOT}; } location / { return 301 https://\$host\$request_uri; } }
-server {
-    listen 443 ssl http2; listen [::]:443 ssl http2; server_name ${domain};
-    ssl_certificate ${CERT_DIR}/fullchain.pem; ssl_certificate_key ${CERT_DIR}/privkey.pem; ssl_protocols TLSv1.2 TLSv1.3;
-    location / { proxy_pass http://127.0.0.1:3000; proxy_http_version 1.1; proxy_set_header Host \$http_host; proxy_set_header X-Real-IP \$remote_addr; proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto https; proxy_set_header X-Forwarded-Port 443; proxy_set_header Upgrade \$http_upgrade; proxy_set_header Connection upgrade; proxy_read_timeout 60s; proxy_buffering off; }
-}
+  cat > "/etc/systemd/system/${SERVICE_NAME}.path" <<EOF
+[Unit]
+Description=Watch Parking Space Manager update requests
+[Path]
+PathExists=${CONTROL_DIR}/update.request
+Unit=${SERVICE_NAME}.service
+[Install]
+WantedBy=multi-user.target
 EOF
-  nginx -t
-  systemctl reload nginx
+  systemctl daemon-reload; systemctl enable --now "${SERVICE_NAME}.path"; set_env WEB_UPDATE_ENABLED true
 }
 
-configure_web() {
-  require_env
-  local mode="${1:-}" domain="${2:-}"
-  if [[ -z "${mode}" ]]; then
-    printf 'Web 部署方式：\n1. 自动配置 Nginx + SSL\n2. 1Panel/宝塔/已有 Nginx 反代\n3. 仅 HTTP 测试\n'
-    read -r -p '请选择 [2]: ' mode </dev/tty
-    mode="${mode:-2}"
-  fi
-  case "${mode}" in
-    1)
-      [[ -n "${domain}" ]] || read -r -p '请输入已解析到本机的域名: ' domain </dev/tty
-      [[ "${domain}" =~ ^[A-Za-z0-9.-]+$ ]] || fail "域名格式不正确"
-      set_env APP_PORT '127.0.0.1:3000'
-      set_env SESSION_COOKIE_SECURE true
-      compose up -d app
-      configure_auto_nginx "${domain}"
-      ;;
-    2)
-      [[ -n "${domain}" ]] || read -r -p '请输入域名（可暂时留空）: ' domain </dev/tty
-      set_env APP_PORT '127.0.0.1:3000'
-      set_env SESSION_COOKIE_SECURE true
-      compose up -d app
-      [[ -z "${domain}" ]] || write_proxy_example "${domain}"
-      log "请在 1Panel/宝塔中反代到 http://127.0.0.1:3000，并为域名启用 HTTPS。"
-      ;;
-    3)
-      set_env APP_PORT 3000
-      set_env SESSION_COOKIE_SECURE false
-      compose up -d app
-      warn "HTTP 测试模式会直接暴露 3000 端口，不适合正式公网使用。"
-      ;;
-    *) fail "Web 模式只能是 1、2 或 3" ;;
-  esac
+write_update_status() {
+  local state="$1" message="$2"; install -d -m 0750 "${CONTROL_DIR}"
+  printf '{"state":"%s","message":"%s","updatedAt":"%s"}\n' "${state}" "${message}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "${CONTROL_DIR}/update-status.json"
+  chown 1001:1001 "${CONTROL_DIR}/update-status.json" 2>/dev/null || true
 }
 
-rollback() {
-  require_env
-  ensure_docker
-  local backup="${1:-}" answer rollback_image
-  [[ -n "${backup}" && -s "${backup}" ]] || fail "请指定有效备份文件：./install.sh rollback /root/backups/parking-*.dump"
-  read -r -p '回滚会覆盖当前数据库，确认继续吗？[y/N]: ' answer </dev/tty
-  [[ "${answer}" =~ ^([Yy]|[Yy][Ee][Ss])$ ]] || { log "已取消"; return 0; }
-  rollback_image="$(cat "${STATE_DIR}/last-rollback-image" 2>/dev/null || true)"
+process_update() {
+  require_env; require_command git; require_command flock; ensure_deployment_env; install -d -m 0700 "${STATE_DIR}"; rm -f "${CONTROL_DIR}/update.request"
+  exec 9>"${STATE_DIR}/update.lock"; flock -n 9 || { write_update_status failed "已有更新任务在运行"; exit 1; }
+  local branch repository source_sha latest installed_sha
+  installed_sha="$(awk -F= '$1=="APP_COMMIT_SHA"{print $2}' "${ENV_FILE}" | tail -n1)"; installed_sha="${installed_sha:-unknown}"
+  trap 'set_env APP_COMMIT_SHA "${installed_sha}"; write_update_status failed "更新失败，请查看 systemd 日志"' EXIT
+  write_update_status updating "正在备份、构建并更新"
+  if ! git diff --quiet || ! git diff --cached --quiet; then fail "仓库有未提交修改，已停止网页更新"; fi
+  branch="$(awk -F= '$1=="UPDATE_BRANCH"{print $2}' "${ENV_FILE}" | tail -n1)"; branch="${branch:-main}"
+  repository="$(awk -F= '$1=="UPDATE_REPOSITORY"{print $2}' "${ENV_FILE}" | tail -n1)"; repository="${repository:-zxyszx/parking-space-manager}"
+  git fetch "https://github.com/${repository}.git" "${branch}"
+  source_sha="$(git rev-parse HEAD)"; latest="$(git rev-parse FETCH_HEAD)"
+  if [[ "${source_sha}" != "${latest}" ]]; then git merge --ff-only FETCH_HEAD; fi
+  if [[ "${installed_sha}" == "${latest}" ]]; then write_update_status success "已是最新版本"; trap - EXIT; return; fi
+  set_env APP_COMMIT_SHA "${latest}"; deploy
+  write_update_status success "更新完成"; trap - EXIT
+}
+
+restore_database() {
+  require_env; ensure_docker
+  local backup="${1:-}" answer
+  [[ -n "${backup}" && -s "${backup}" ]] || fail "请指定有效备份：./install.sh restore backups/parking-*.dump"
+  read -r -p '恢复会覆盖当前数据库，确认继续吗？[y/N]: ' answer </dev/tty
+  [[ "${answer}" =~ ^([Yy]|[Yy][Ee][Ss])$ ]] || { log "已取消"; return; }
   compose stop app
-  compose exec -T db pg_restore -U parking -d parking_manager --clean --if-exists < "${backup}"
-  if [[ -n "${rollback_image}" ]]; then docker tag "${rollback_image}" parking-space-manager-app:latest; fi
-  compose up -d --no-build app
-  wait_for_health 60 || fail "回滚后健康检查失败"
-  log "回滚完成"
+  if ! compose exec -T db pg_restore -U parking -d parking_manager --clean --if-exists < "${backup}"; then
+    compose start app; fail "数据库恢复失败，应用已重新启动"
+  fi
+  compose start app; wait_for_health 60 || fail "恢复后健康检查失败"; log "数据库恢复完成"
 }
 
 usage() {
   cat <<'EOF'
 用法：./install.sh <命令>
-  install             首次安装并启动
+  install             一键安装并开放 APP_PORT（默认 3000）
   update              备份、构建、迁移并更新
-  web [1|2|3] [域名]  配置三种 Web/反代模式
-  backup              备份并校验数据库
-  rollback <备份>     恢复数据库和上一个应用镜像
+  backup              备份并校验 PostgreSQL
+  restore <备份>     恢复 PostgreSQL 备份
   status              查看容器与健康状态
   logs                查看应用日志
 EOF
@@ -261,12 +187,12 @@ EOF
 
 cd "${INSTALL_DIR}"
 case "${1:-}" in
-  install) ensure_docker; require_command openssl; configure_env; deploy; configure_web ;;
-  update) deploy ;;
-  web) configure_web "${2:-}" "${3:-}" ;;
+  install) ensure_docker; require_command openssl; require_command git; configure_env; ensure_deployment_env; configure_web_updater; deploy; log "安装完成：请在 1Panel 反向代理到 http://127.0.0.1:$(app_port)" ;;
+  update) process_update ;;
+  process-update) process_update ;;
   backup) backup_database ;;
-  rollback) rollback "${2:-}" ;;
-  status) require_env; compose ps; curl -fsS http://127.0.0.1:3000/api/health || true; printf '\n' ;;
+  restore) restore_database "${2:-}" ;;
+  status) require_env; compose ps; curl -fsS "http://127.0.0.1:$(app_port)/api/health" || true; printf '\n' ;;
   logs) require_env; compose logs --tail=200 app ;;
   *) usage; [[ -n "${1:-}" ]] && exit 1 || true ;;
 esac

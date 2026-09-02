@@ -6,6 +6,8 @@ node_modules
 generated
 coverage
 tmp/
+backups/
+data/control/
 *.log
 *.tsbuildinfo
 .DS_Store

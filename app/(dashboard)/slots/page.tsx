@@ -14,21 +14,44 @@ export default async function SlotsPage({ searchParams }: { searchParams: Promis
     prisma.platform.findMany({ where: { status: "ACTIVE" }, include: { _count: { select: { parkingSlots: true } } }, orderBy: { createdAt: "asc" } }),
     prisma.parkingSlot.findMany({
       where: params.platform ? { platform: { slug: params.platform } } : undefined,
-      include: { platform: true, members: { orderBy: { expireDate: "asc" } }, renewals: { include: { member: { select: { nickname: true } } }, orderBy: { createdAt: "desc" } } },
+      select: {
+        id: true,
+        slotNumber: true,
+        accountEmail: true,
+        cardLast4: true,
+        billingDay: true,
+        capacity: true,
+        status: true,
+        note: true,
+        platform: { select: { id: true, name: true, slug: true, icon: true, defaultCapacity: true } },
+        members: {
+          select: { id: true, nickname: true, contact: true, contactType: true, startDate: true, expireDate: true, status: true, seatNumber: true, note: true },
+          orderBy: { expireDate: "asc" },
+        },
+        _count: { select: { renewals: true } },
+      },
       orderBy: [{ platform: { name: "asc" } }, { slotNumber: "asc" }],
     }),
   ]);
-  const slots: SlotItem[] = rows.map((slot) => ({
+  const slots: SlotItem[] = rows.map(({ _count, ...slot }) => ({
     ...slot,
-    createdAt: undefined,
-    updatedAt: undefined,
-    encryptedPassword: undefined,
-    members: slot.members.map((m) => ({ ...m, startDate: m.startDate.toISOString(), expireDate: m.expireDate.toISOString(), createdAt: undefined, updatedAt: undefined, slotId: undefined })),
-    renewals: slot.renewals.map((r) => ({ ...r, amount: r.amount.toString(), oldExpireDate: r.oldExpireDate.toISOString(), newExpireDate: r.newExpireDate.toISOString(), createdAt: r.createdAt.toISOString(), memberId: undefined, slotId: undefined, operatorId: undefined, months: undefined, note: undefined })),
-    platform: { id: slot.platform.id, name: slot.platform.name, slug: slot.platform.slug, icon: slot.platform.icon, defaultCapacity: slot.platform.defaultCapacity },
-  })) as unknown as SlotItem[];
+    members: slot.members.map((member) => ({ ...member, startDate: member.startDate.toISOString(), expireDate: member.expireDate.toISOString() })),
+    renewals: [],
+    renewalCount: _count.renewals,
+  }));
   const closeHref = params.platform ? `/slots?platform=${encodeURIComponent(params.platform)}` : "/slots";
-  return <div className="mx-auto max-w-[1800px] space-y-4">
+  const createHref = `${closeHref}${closeHref.includes("?") ? "&" : "?"}create=1`;
+  const activeMembers = slots.reduce((sum, slot) => sum + slot.members.filter((member) => member.status === "ACTIVE").length, 0);
+  const totalCapacity = slots.reduce((sum, slot) => sum + slot.capacity, 0);
+  const currentPlatform = params.platform ? platforms.find((platform) => platform.slug === params.platform) : undefined;
+  return <div className="slot-page mx-auto max-w-[1800px]">
+    <header className="slot-page-header">
+      <div className="min-w-0">
+        <h1 className="page-title">{currentPlatform?.name || "合租车位"}</h1>
+        <p className="page-description tabular">{slots.length} 个账号 · {activeMembers}/{totalCapacity} 个席位在用 · {Math.max(0, totalCapacity - activeMembers)} 个空位</p>
+      </div>
+      <Link href={createHref} scroll={false} className="btn btn-primary"><Plus size={16} />新增车位</Link>
+    </header>
     <nav className="platform-tabs" aria-label="合租车位工作表">
       <Link href="/settings#platforms" className="platform-tab-add" aria-label="管理平台" title="管理平台"><Plus size={16} /></Link>
       <Link href="/slots" scroll={false} aria-current={!params.platform ? "page" : undefined} className={!params.platform ? "platform-tab platform-tab-active" : "platform-tab"}>全部车位<span>{platforms.reduce((sum, item) => sum + item._count.parkingSlots, 0)}</span></Link>

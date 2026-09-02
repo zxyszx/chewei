@@ -16,7 +16,11 @@ services:
       retries: 20
 
   app:
-    build: .
+    image: parking-space-manager-app:latest
+    build:
+      context: .
+      args:
+        NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: ${NEXT_SERVER_ACTIONS_ENCRYPTION_KEY:?请设置 NEXT_SERVER_ACTIONS_ENCRYPTION_KEY}
     restart: unless-stopped
     depends_on:
       db:
@@ -24,11 +28,20 @@ services:
     environment:
       DATABASE_URL: postgresql://parking:${POSTGRES_PASSWORD}@db:5432/parking_manager
       AUTH_SECRET: ${AUTH_SECRET:?请设置 AUTH_SECRET}
+      NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: ${NEXT_SERVER_ACTIONS_ENCRYPTION_KEY:?请设置 NEXT_SERVER_ACTIONS_ENCRYPTION_KEY}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:?请设置 ENCRYPTION_KEY}
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?请设置 ADMIN_PASSWORD}
       SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-}
+      APP_COMMIT_SHA: ${APP_COMMIT_SHA:-unknown}
+      UPDATE_REPOSITORY: ${UPDATE_REPOSITORY:-zxyszx/parking-space-manager}
+      UPDATE_BRANCH: ${UPDATE_BRANCH:-main}
+      WEB_UPDATE_ENABLED: ${WEB_UPDATE_ENABLED:-false}
+      UPDATE_REQUEST_FILE: /app/control/update.request
+      UPDATE_STATUS_FILE: /app/control/update-status.json
       TZ: Asia/Shanghai
+    volumes:
+      - ./data/control:/app/control
     ports:
       - "${APP_PORT:-3000}:3000"
     healthcheck:

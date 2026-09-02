@@ -1,7 +1,8 @@
 "use server";
 
 import { addMonths } from "date-fns";
-import { headers } from "next/headers";
+import { hash } from "bcryptjs";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -20,6 +21,16 @@ export type ActionState = {
   ok: boolean;
   message: string;
   data?: Record<string, string>;
+};
+
+export type SlotRenewalRecord = {
+  id: string;
+  oldExpireDate: string;
+  newExpireDate: string;
+  amount: string;
+  paymentMethod: string;
+  createdAt: string;
+  member: { nickname: string };
 };
 const initialError: ActionState = {
   ok: false,
@@ -493,6 +504,40 @@ export async function renewMemberAction(
   }
 }
 
+export async function loadSlotRenewalsAction(slotId: string): Promise<
+  | { ok: true; records: SlotRenewalRecord[] }
+  | { ok: false; message: string }
+> {
+  await requireUser();
+  try {
+    const records = await prisma.renewal.findMany({
+      where: { slotId },
+      select: {
+        id: true,
+        oldExpireDate: true,
+        newExpireDate: true,
+        amount: true,
+        paymentMethod: true,
+        createdAt: true,
+        member: { select: { nickname: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    return {
+      ok: true,
+      records: records.map((record) => ({
+        ...record,
+        amount: record.amount.toString(),
+        oldExpireDate: record.oldExpireDate.toISOString(),
+        newExpireDate: record.newExpireDate.toISOString(),
+        createdAt: record.createdAt.toISOString(),
+      })),
+    };
+  } catch {
+    return { ok: false, message: "续费记录加载失败，请重试" };
+  }
+}
+
 export async function exitMemberAction(memberId: string): Promise<ActionState> {
   const user = await requireUser();
   try {
@@ -839,4 +884,45 @@ export async function deletePlatformAction(
       message: error instanceof Error ? error.message : "删除平台失败",
     };
   }
+}
+
+const userSchema = z.object({
+  username: z.string().trim().min(3, "账号至少 3 位").max(40).regex(/^[A-Za-z0-9._-]+$/, "账号只能使用字母、数字、点、下划线或连字符"),
+  password: z.string().min(10, "密码至少 10 位").max(200),
+  role: z.enum(["ADMIN", "OPERATOR"]),
+});
+
+export async function createUserAction(_state: ActionState, formData: FormData): Promise<ActionState> {
+  const operator = await requireAdmin();
+  const parsed = userSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message || "账号信息不正确" };
+  try {
+    const created = await prisma.user.create({ data: { username: parsed.data.username, passwordHash: await hash(parsed.data.password, 12), role: parsed.data.role } });
+    await log(operator.id, "CREATE_USER", "user", created.id, { username: created.username, role: created.role });
+    revalidatePath("/settings");
+    return { ok: true, message: `${created.username} 已创建` };
+  } catch { return { ok: false, message: "账号已存在" }; }
+}
+
+export async function updateUserAction(_state: ActionState, formData: FormData): Promise<ActionState> {
+  const operator = await requireAdmin();
+  const parsed = z.object({ userId: z.string().min(1), role: z.enum(["ADMIN", "OPERATOR"]), status: z.enum(["ACTIVE", "PAUSED"]), password: z.string().max(200).refine((value) => !value || value.length >= 10, "新密码至少 10 位") }).safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message || "账号设置不正确" };
+  try {
+    const updated = await prisma.$transaction(async (tx) => {
+      const current = await tx.user.findUniqueOrThrow({ where: { id: parsed.data.userId } });
+      if (current.id === operator.id && (parsed.data.role !== "ADMIN" || parsed.data.status !== "ACTIVE")) throw new Error("不能停用当前账号或移除自己的管理员权限");
+      if (current.role === "ADMIN" && current.status === "ACTIVE" && (parsed.data.role !== "ADMIN" || parsed.data.status !== "ACTIVE")) {
+        const activeAdmins = await tx.user.count({ where: { role: "ADMIN", status: "ACTIVE" } });
+        if (activeAdmins <= 1) throw new Error("系统至少需要一个启用的管理员");
+      }
+      const updated = await tx.user.update({ where: { id: current.id }, data: { role: parsed.data.role, status: parsed.data.status, ...(parsed.data.password ? { passwordHash: await hash(parsed.data.password, 12) } : {}) } });
+      if (parsed.data.status !== "ACTIVE" || parsed.data.password) await tx.session.deleteMany({ where: { userId: current.id } });
+      return updated;
+    });
+    await log(operator.id, "UPDATE_USER", "user", updated.id, { username: updated.username, role: updated.role, status: updated.status, password: parsed.data.password ? "updated" : "unchanged" });
+    if (updated.id === operator.id && parsed.data.password) (await cookies()).delete("parking_session");
+    revalidatePath("/settings");
+    return { ok: true, message: updated.id === operator.id && parsed.data.password ? "密码已更新，请重新登录" : `${updated.username} 已更新` };
+  } catch (error) { return { ok: false, message: error instanceof Error ? error.message : "账号更新失败" }; }
 }

@@ -1,6 +1,5 @@
 import {
   BellRing,
-  CheckCircle2,
   ParkingCircle,
   ReceiptText,
   ShieldCheck,
@@ -67,8 +66,8 @@ export default async function LoginPage() {
           </div>
 
           <div className="flex items-center gap-2 border-t border-white/15 pt-6 text-[13px] text-[#dedede]">
-            <CheckCircle2 size={16} className="text-[#7dd3fc]" />
-            系统服务正常
+            <ShieldCheck size={16} className="text-[#7dd3fc]" />
+            私有部署 · 数据留在自己的服务器
           </div>
         </aside>
 

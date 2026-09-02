@@ -42,6 +42,8 @@ const operationNames: Record<string, string> = {
   UPDATE_PLATFORM: "修改平台",
   CREATE_PLATFORM: "新增平台",
   DELETE_PLATFORM: "删除平台",
+  CREATE_USER: "创建后台账号",
+  UPDATE_USER: "修改后台账号",
 };
 
 function Stat({

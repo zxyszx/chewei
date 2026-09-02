@@ -66,7 +66,7 @@ export default async function RemindersPage({
             </Link>
           ))}
         </div>
-        <div className="data-wrap">
+        <div className="data-wrap responsive-table-desktop">
           <table className="data-table">
             <thead>
               <tr>
@@ -143,6 +143,7 @@ export default async function RemindersPage({
             <div className="empty">当前筛选范围内没有到期记录</div>
           )}
         </div>
+        <div className="mobile-record-list">{members.map((member) => { const expiry = expiryLabel(member.expireDate, now); const item: MemberItem = { id: member.id, nickname: member.nickname, contact: member.contact, contactType: member.contactType, startDate: member.startDate.toISOString(), expireDate: member.expireDate.toISOString(), status: member.status, note: member.note }; return <article className="mobile-record" key={member.id}><div className="flex items-start justify-between gap-3"><div><strong>{member.nickname}</strong><div className="mt-1 flex items-center gap-2 text-[12px] text-[var(--muted-foreground)]"><PlatformIcon slug={member.slot.platform.slug} name={member.slot.platform.name} icon={member.slot.platform.icon} size={15} />{member.slot.platform.name} #{member.slot.slotNumber}</div></div><Badge tone={expiry.tone}>{expiry.text}</Badge></div><dl className="mt-3 grid grid-cols-[76px_minmax(0,1fr)] gap-y-2 text-[12px]"><dt className="mobile-record-label">到期时间</dt><dd className="tabular">{format(member.expireDate, "yyyy.MM.dd")}</dd><dt className="mobile-record-label">联系方式</dt><dd><ContactValue type={member.contactType} value={member.contact} /></dd><dt className="mobile-record-label">处理状态</dt><dd>{expiry.days < 0 ? <Badge tone="danger">已过期</Badge> : expiry.days <= 7 ? <Badge tone="warning">需关注</Badge> : <Badge tone="success">正常</Badge>}</dd></dl><div className="mt-3 flex gap-2 border-t border-[var(--border)] pt-3"><Link className="btn min-h-9 flex-1 text-[12px]" href={`/slots?open=${member.slotId}`}>查看账号</Link><RenewButton member={item} compact /></div></article>; })}{!members.length && <div className="empty">当前筛选范围内没有到期记录</div>}</div>
       </section>
     </div>
   );

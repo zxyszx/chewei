@@ -93,6 +93,6 @@ export function AppShell({ children, reminderCount, username, role }: { children
     <div className="fixed inset-y-0 left-0 z-40 desktop-only"><Sidebar reminderCount={reminderCount} username={username} role={role} compact={sidebarCompact} toggleCompact={toggleSidebar} /></div>
     <button className="mobile-sidebar-trigger mobile-only" onClick={() => setMobileNav(true)} aria-label="打开侧栏" title="打开侧栏"><Menu size={19} /></button>
     {mobileNav && <div className="fixed inset-0 z-[90] bg-black/35" onClick={() => setMobileNav(false)}><div role="dialog" aria-modal="true" aria-label="移动导航" className="h-full w-[224px]" onClick={(event) => event.stopPropagation()}><Sidebar reminderCount={reminderCount} username={username} role={role} close={() => setMobileNav(false)} /></div></div>}
-    <div className="min-w-0 flex-1 pl-[var(--sidebar-width)]"><main id="main-content" className="app-main min-h-dvh px-3 pb-8 md:px-5 xl:px-6">{children}</main></div>
+    <div className="app-content min-w-0 flex-1 pl-[var(--sidebar-width)]"><main id="main-content" className="app-main min-h-dvh px-3 pb-8 md:px-5 xl:px-6">{children}</main></div>
   </div>;
 }

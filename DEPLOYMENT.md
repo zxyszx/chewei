@@ -1,149 +1,62 @@
-# 日本服务器部署说明
+# Docker + 1Panel 部署
 
-本文以 Ubuntu / Debian 服务器和 Docker Compose 为例。数据库只在容器网络内开放，不暴露公网端口。
+仓库只负责启动应用和 PostgreSQL，不修改 Nginx、不申请证书、不绑定域名。域名、HTTPS 和反向代理全部在 1Panel 中管理。
 
-## 推荐：一键脚本
+## 一键安装
 
-```bash
-chmod +x install.sh
-./install.sh install
-```
-
-首次安装会生成生产密钥、启动服务，并提示选择 Web 模式：
-
-1. 自动配置 Nginx + SSL：适合没有现有 Web 面板且 `80/443` 未占用的服务器。
-2. 1Panel / 宝塔 / 已有 Nginx 反代：应用仅绑定 `127.0.0.1:3000`，脚本生成 `reverse-proxy.conf` 参考文件。
-3. 仅 HTTP 测试：直接开放 `3000`，不适合正式公网使用。
-
-常用维护命令：
+服务器需要 Git、Docker Engine 和 Docker Compose Plugin。
 
 ```bash
-./install.sh update
-./install.sh backup
-./install.sh status
-./install.sh logs
-./install.sh web 2 parking.example.com
-```
-
-`update` 会先生成并校验 PostgreSQL 备份，再构建镜像、执行迁移和健康检查。失败时会恢复旧应用镜像，并保留数据库备份供明确回滚。
-
-## 1. 准备服务器
-
-安装 Docker Engine 和 Compose Plugin，并确认：
-
-```bash
-docker --version
-docker compose version
-git --version
-```
-
-防火墙只需开放 SSH 和应用端口；直接测试时开放 `3000/tcp`，绑定域名后建议仅开放 `80/443`。
-
-## 2. 拉取私有仓库
-
-推荐为服务器配置 GitHub Deploy Key，然后执行：
-
-```bash
-git clone git@github.com:zxyszx/parking-space-manager.git
+git clone https://github.com/zxyszx/parking-space-manager.git
 cd parking-space-manager
+chmod +x install.sh
+sudo ./install.sh install
 ```
 
-也可以使用只具备该仓库读取权限的 GitHub fine-grained token，不要把 token 写进仓库。
+首次只会询问管理员账号和密码，其余密钥自动生成。包括 Server Action 密钥在内的密钥会跨版本保留，避免更新后旧页面操作失效。默认对外提供 `3000` 端口，可在 `.env.production` 修改 `APP_PORT`。
 
-## 3. 配置生产环境
+## 在 1Panel 中反代
+
+1. 新建一个“反向代理”网站。
+2. 代理地址填写 `http://127.0.0.1:3000`。
+3. 在 1Panel 中绑定域名、申请证书并开启 HTTPS。
+4. 保留 `Host` 头，并让 1Panel 传递 `X-Forwarded-Proto`。
+
+`SESSION_COOKIE_SECURE` 默认留空，应用会根据 1Panel 传入的 HTTPS 协议自动设置安全 Cookie。
+
+## 网页更新
+
+root 用户执行一键安装时，脚本会安装一个受限的 systemd 文件监视器。设置页的“立即更新”只会写入请求文件，应用容器不会挂载 Docker Socket。宿主机收到请求后会：
+
+1. 检查仓库是否有未提交修改。
+2. 拉取 GitHub `main` 分支并仅允许快进更新。
+3. 备份和校验 PostgreSQL。
+4. 重建镜像、迁移数据库并执行健康检查。
+
+也可手动执行：
 
 ```bash
-cp .env.production.example .env.production
-openssl rand -base64 48
-openssl rand -hex 32
+sudo ./install.sh update
 ```
 
-将生成值和强密码写入 `.env.production`：
+## 备份与恢复
 
-```dotenv
-POSTGRES_PASSWORD=建议使用 openssl rand -hex 24 生成的数据库密码
-AUTH_SECRET=上一步生成的会话密钥
-ENCRYPTION_KEY=上一步生成的64位十六进制密钥
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD=高强度管理员密码
-SESSION_COOKIE_SECURE=false
-APP_PORT=3000
-```
+设置页支持下载完整 JSON 备份和恢复。JSON 包含加密后的平台密码和管理员密码哈希，必须与原服务器使用相同的 `ENCRYPTION_KEY`。
 
-限制文件权限：
+宿主机级 PostgreSQL 备份：
 
 ```bash
-chmod 600 .env.production
+sudo ./install.sh backup
+sudo ./install.sh restore backups/parking-20260903T120000Z.dump
 ```
 
-`ENCRYPTION_KEY` 用于解密共享账号密码，投入真实数据后必须安全备份；丢失后数据库中的密码无法恢复。
+请异机保存 `backups/` 和 `.env.production`。丢失 `ENCRYPTION_KEY` 后，已保存的平台密码无法解密。
 
-## 4. 构建并启动
+## 常用命令
 
 ```bash
-docker compose --env-file .env.production up -d --build
-docker compose --env-file .env.production ps
+sudo ./install.sh status
+sudo ./install.sh logs
+sudo ./install.sh backup
+sudo ./install.sh update
 ```
-
-应用启动时会自动运行数据库迁移。首次测试环境再执行一次 Seed：
-
-```bash
-docker compose --env-file .env.production exec app npm run db:seed
-```
-
-Seed 只用于首次测试数据初始化；检测到已有共享账号时会跳过，不要在正式运营后强制重置。
-
-## 5. 验证
-
-```bash
-curl -fsS http://127.0.0.1:3000/api/health
-docker compose --env-file .env.production logs --tail=100 app
-```
-
-健康检查应返回：
-
-```json
-{ "status": "ok", "database": "connected" }
-```
-
-然后访问 `http://服务器IP:3000`，使用 `.env.production` 中的管理员账号登录，验证新建共享账号、添加车友、续费和 JSON 备份。该方式只用于临时测试；HTTP 无法保护登录密码，浏览器密码管理器也会显示安全警告。
-
-## 6. 更新版本
-
-```bash
-git pull --ff-only
-docker compose --env-file .env.production up -d --build
-docker image prune -f
-```
-
-迁移随新容器启动自动执行。
-
-## 7. 备份与恢复
-
-数据库备份：
-
-```bash
-docker compose --env-file .env.production exec -T db pg_dump -U parking -d parking_manager -Fc > parking-$(date +%F).dump
-```
-
-恢复前先停止应用写入，再执行：
-
-```bash
-docker compose --env-file .env.production stop app
-docker compose --env-file .env.production exec -T db pg_restore -U parking -d parking_manager --clean --if-exists < parking-2026-08-20.dump
-docker compose --env-file .env.production start app
-```
-
-建议每日异机备份数据库，同时备份 `.env.production` 中的 `ENCRYPTION_KEY`。
-
-## 8. 域名与 HTTPS
-
-生产环境建议在前面使用 Caddy 或 Nginx，将域名反向代理到 `127.0.0.1:3000`。Caddy 示例：
-
-```caddyfile
-parking.example.com {
-    reverse_proxy 127.0.0.1:3000
-}
-```
-
-启用反向代理后，将 `.env.production` 中的 `SESSION_COOKIE_SECURE` 改为 `true`，再重建应用容器。把 `APP_PORT` 仅绑定本机，或通过防火墙关闭公网 `3000` 端口。
