@@ -5,7 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   Bell, ChartNoAxesCombined, ChevronDown, CreditCard, History, House,
-  LayoutGrid, LoaderCircle, LogOut, Menu, PanelLeft, ParkingCircle,
+  Layers3, LayoutGrid, LoaderCircle, LogOut, Menu, PanelLeft, ParkingCircle,
   Settings, UsersRound, X,
 } from "lucide-react";
 import { logoutAction } from "@/app/actions";
@@ -61,7 +61,7 @@ function SidebarToggle({ compact, toggle }: { compact: boolean; toggle: () => vo
 function Sidebar({ reminderCount, username, role, compact = false, close, toggleCompact }: { reminderCount: number; username: string; role: string; compact?: boolean; close?: () => void; toggleCompact?: () => void }) {
   return <aside className={cn("sidebar flex h-full shrink-0 flex-col border-r border-[var(--border)] transition-[width] duration-200", compact ? "w-[56px]" : "w-[240px]")}>
     <div className={cn("flex h-14 shrink-0 items-center", compact ? "justify-center" : "gap-2 px-3")}>
-      {compact ? toggleCompact && <SidebarToggle compact toggle={toggleCompact} /> : <><div className="grid size-8 shrink-0 place-items-center rounded-full bg-[var(--primary)] text-[var(--primary-foreground)]"><ParkingCircle size={19} /></div><strong className="min-w-0 flex-1 truncate text-[14px]">车位管理系统</strong>{toggleCompact && <SidebarToggle compact={false} toggle={toggleCompact} />}</>}
+      {compact ? toggleCompact && <SidebarToggle compact toggle={toggleCompact} /> : <><div className="grid size-8 shrink-0 place-items-center rounded-[7px] bg-white/12 text-white"><Layers3 size={18} /></div><strong className="min-w-0 flex-1 truncate text-[14px]">Chewei</strong>{toggleCompact && <SidebarToggle compact={false} toggle={toggleCompact} />}</>}
       {close && <button autoFocus onClick={close} className="sidebar-icon-button ml-auto" aria-label="关闭菜单"><X size={18} /></button>}
     </div>
     <nav className={cn("flex-1 overflow-y-auto py-2", compact ? "px-1.5" : "px-2.5")} aria-label="主导航">
@@ -91,13 +91,13 @@ export function AppShell({ children, reminderCount, username, role }: { children
   const [mobileNav, setMobileNav] = useState(false);
   const [sidebarCompact, setSidebarCompact] = useState(false);
   useEffect(() => {
-    const frame = window.requestAnimationFrame(() => setSidebarCompact(window.localStorage.getItem("parking-sidebar") === "compact"));
+    const frame = window.requestAnimationFrame(() => setSidebarCompact(window.localStorage.getItem("chewei-sidebar") === "compact" || window.localStorage.getItem("parking-sidebar") === "compact"));
     const handler = (event: KeyboardEvent) => { if (event.key === "Escape") setMobileNav(false); };
     window.addEventListener("keydown", handler);
     return () => { window.cancelAnimationFrame(frame); window.removeEventListener("keydown", handler); };
   }, []);
   const toggleSidebar = () => setSidebarCompact((current) => {
-    window.localStorage.setItem("parking-sidebar", current ? "expanded" : "compact");
+    window.localStorage.setItem("chewei-sidebar", current ? "expanded" : "compact");
     return !current;
   });
   return <div className="flex min-h-dvh" style={{ "--sidebar-width": sidebarCompact ? "56px" : "240px" } as React.CSSProperties}>

@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-INSTALL_DIR="${PARKING_INSTALL_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+INSTALL_DIR="${CHEWEI_INSTALL_DIR:-${PARKING_INSTALL_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}}"
 ENV_FILE="${INSTALL_DIR}/.env.production"
 STATE_DIR="${INSTALL_DIR}/.deploy"
 CONTROL_DIR="${INSTALL_DIR}/data/control"
-BACKUP_DIR="${PARKING_BACKUP_DIR:-${INSTALL_DIR}/backups}"
+BACKUP_DIR="${CHEWEI_BACKUP_DIR:-${PARKING_BACKUP_DIR:-${INSTALL_DIR}/backups}}"
+# Keep the legacy unit name so existing servers continue receiving web updates.
 SERVICE_NAME="parking-space-manager-update"
 
-log() { printf '[车位系统] %s\n' "$*"; }
+log() { printf '[Chewei] %s\n' "$*"; }
 warn() { printf '[警告] %s\n' "$*" >&2; }
 fail() { printf '[错误] %s\n' "$*" >&2; exit 1; }
 require_command() { command -v "$1" >/dev/null 2>&1 || fail "缺少命令：$1"; }
@@ -40,7 +41,7 @@ wait_for_health() {
 
 backup_database() {
   require_env; ensure_docker; install -d -m 0700 "${BACKUP_DIR}"
-  local destination; destination="${BACKUP_DIR}/parking-$(date -u +%Y%m%dT%H%M%SZ).dump"
+  local destination; destination="${BACKUP_DIR}/chewei-$(date -u +%Y%m%dT%H%M%SZ).dump"
   compose exec -T db pg_dump -U parking -d parking_manager -Fc > "${destination}"
   [[ -s "${destination}" ]] || fail "数据库备份为空"
   compose exec -T db pg_restore -l < "${destination}" >/dev/null || fail "数据库备份校验失败"
@@ -117,7 +118,7 @@ configure_web_updater() {
   fi
   cat > "/etc/systemd/system/${SERVICE_NAME}.service" <<EOF
 [Unit]
-Description=Parking Space Manager controlled updater
+Description=Chewei controlled updater
 After=docker.service network-online.target
 [Service]
 Type=oneshot
@@ -126,7 +127,7 @@ ExecStart=${INSTALL_DIR}/install.sh process-update
 EOF
   cat > "/etc/systemd/system/${SERVICE_NAME}.path" <<EOF
 [Unit]
-Description=Watch Parking Space Manager update requests
+Description=Watch Chewei update requests
 [Path]
 PathExists=${CONTROL_DIR}/update.request
 Unit=${SERVICE_NAME}.service
@@ -163,7 +164,7 @@ process_update() {
 restore_database() {
   require_env; ensure_docker
   local backup="${1:-}" answer
-  [[ -n "${backup}" && -s "${backup}" ]] || fail "请指定有效备份：./install.sh restore backups/parking-*.dump"
+  [[ -n "${backup}" && -s "${backup}" ]] || fail "请指定有效备份：./install.sh restore backups/chewei-*.dump"
   read -r -p '恢复会覆盖当前数据库，确认继续吗？[y/N]: ' answer </dev/tty
   [[ "${answer}" =~ ^([Yy]|[Yy][Ee][Ss])$ ]] || { log "已取消"; return; }
   compose stop app

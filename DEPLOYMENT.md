@@ -47,7 +47,7 @@ sudo ./install.sh update
 
 ```bash
 sudo ./install.sh backup
-sudo ./install.sh restore backups/parking-20260903T120000Z.dump
+sudo ./install.sh restore backups/chewei-20260903T120000Z.dump
 ```
 
 请异机保存 `backups/` 和 `.env.production`。丢失 `ENCRYPTION_KEY` 后，已保存的平台密码无法解密。

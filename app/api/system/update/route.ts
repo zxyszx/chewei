@@ -16,7 +16,7 @@ async function readStatus() {
 }
 
 async function latestCommit() {
-  const response = await fetch(`https://api.github.com/repos/${repository}/commits/${encodeURIComponent(branch)}`, { cache: "no-store", headers: { Accept: "application/vnd.github+json", "User-Agent": "parking-space-manager" }, signal: AbortSignal.timeout(8000) });
+  const response = await fetch(`https://api.github.com/repos/${repository}/commits/${encodeURIComponent(branch)}`, { cache: "no-store", headers: { Accept: "application/vnd.github+json", "User-Agent": "chewei" }, signal: AbortSignal.timeout(8000) });
   if (!response.ok) throw new Error("无法读取 GitHub 版本");
   const value = await response.json() as { sha: string; commit?: { message?: string; committer?: { date?: string } } };
   return { sha: value.sha, message: value.commit?.message?.split("\n")[0] || "", date: value.commit?.committer?.date || null };

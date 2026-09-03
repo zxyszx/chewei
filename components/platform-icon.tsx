@@ -1,11 +1,35 @@
-import { siHbo, siNetflix, siSpotify, siTidal, type SimpleIcon } from "simple-icons";
+import {
+  siApplemusic, siAppletv, siClaude, siCrunchyroll, siDeezer, siDropbox,
+  siEmby, siGoogledrive, siGooglegemini, siHbo, siHbomax, siJellyfin,
+  siNetflix, siNotion, siParamountplus, siPerplexity, siPlaystation, siPlex,
+  siSpotify, siSteam, siTidal, siYoutube, siYoutubemusic, type SimpleIcon,
+} from "simple-icons";
 import { cn } from "@/lib/utils";
 
 const brandIcons: Record<string, SimpleIcon> = {
   hbo: siHbo,
+  "hbo-max": siHbomax,
   netflix: siNetflix,
   spotify: siSpotify,
   tidal: siTidal,
+  "apple-music": siApplemusic,
+  "apple-tv": siAppletv,
+  claude: siClaude,
+  crunchyroll: siCrunchyroll,
+  deezer: siDeezer,
+  dropbox: siDropbox,
+  emby: siEmby,
+  "google-drive": siGoogledrive,
+  gemini: siGooglegemini,
+  jellyfin: siJellyfin,
+  notion: siNotion,
+  "paramount-plus": siParamountplus,
+  perplexity: siPerplexity,
+  playstation: siPlaystation,
+  plex: siPlex,
+  steam: siSteam,
+  "youtube-premium": siYoutube,
+  "youtube-music": siYoutubemusic,
 };
 
 const fallbackColors: Record<string, string> = {
@@ -13,6 +37,7 @@ const fallbackColors: Record<string, string> = {
   iqiyi: "#00be06",
   "prime-video": "#00a8e1",
   viki: "#5b4cff",
+  chatgpt: "#10a37f",
 };
 
 export function PlatformIcon({ slug, name, icon: customIcon, size = 18, className }: { slug: string; name: string; icon?: string | null; size?: number; className?: string }) {

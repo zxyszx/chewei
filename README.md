@@ -1,4 +1,4 @@
-# 车位管理系统
+# Chewei
 
 面向 Netflix、Spotify、Prime Video、ChatGPT 等共享订阅业务的自托管管理后台。集中管理平台账号、成员席位、到期提醒、续费收入、操作审计和数据备份。
 
@@ -61,7 +61,7 @@ http://服务器IP:3311
 指定安装目录：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/zxyszx/chewei/main/bootstrap.sh | sudo PARKING_INSTALL_DIR=/opt/my-parking bash
+curl -fsSL https://raw.githubusercontent.com/zxyszx/chewei/main/bootstrap.sh | sudo CHEWEI_INSTALL_DIR=/opt/chewei bash
 ```
 
 手动拉取公开仓库：
@@ -105,7 +105,7 @@ sudo ./install.sh update
 ```bash
 cd /opt/chewei
 sudo ./install.sh backup
-sudo ./install.sh restore backups/parking-20260903T120000Z.dump
+sudo ./install.sh restore backups/chewei-20260903T120000Z.dump
 ```
 
 服务器备份会使用 PostgreSQL 自带格式创建并立即校验。建议异机保存 `/opt/chewei/backups/` 和 `.env.production`。

@@ -35,7 +35,7 @@ export async function GET() {
     prisma.platform.findMany(), prisma.parkingSlot.findMany(), prisma.member.findMany(), prisma.renewal.findMany(), prisma.operationLog.findMany(), prisma.user.findMany(), prisma.setting.findMany(),
   ]);
   const body = JSON.stringify({ version: 3, exportedAt: new Date().toISOString(), encryptionKeyFingerprint: encryptionKeyFingerprint(), platforms, slots, members, renewals: renewals.map((r) => ({ ...r, amount: r.amount.toString() })), operationLogs, users, settings }, null, 2);
-  return new Response(body, { headers: { "content-type": "application/json; charset=utf-8", "content-disposition": `attachment; filename="parking-backup-${new Date().toISOString().slice(0, 10)}.json"` } });
+  return new Response(body, { headers: { "content-type": "application/json; charset=utf-8", "content-disposition": `attachment; filename="chewei-backup-${new Date().toISOString().slice(0, 10)}.json"` } });
 }
 
 export async function POST(request: Request) {
