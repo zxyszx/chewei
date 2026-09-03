@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, ImagePlus, LoaderCircle, Pencil, Plus, RefreshCw, RotateCcw, Trash2, Upload, UserPlus, X } from "lucide-react";
+import { CheckCircle2, CircleAlert, Download, ImagePlus, LoaderCircle, Pencil, Plus, RefreshCw, RotateCcw, Trash2, Upload, UserPlus, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -129,12 +129,21 @@ export function SystemMaintenance({ editable }: { editable: boolean }) {
   }
 
   const short = (value?: string) => value && value !== "unknown" ? value.slice(0, 7) : "未知";
+  const updateState = updateInfo?.status?.state;
+  const updateRunning = updateState === "queued" || updateState === "updating";
+  const upToDate = Boolean(updateInfo?.enabled && updateInfo.latest && !updateInfo.updateAvailable && !updateRunning);
+  const statusLabel = checking ? "正在检查" : updateRunning ? "正在更新" : updateInfo?.updateAvailable ? "发现新版本" : upToDate ? "已是最新版本" : "等待检查";
+  const statusTone = updateInfo?.updateAvailable ? "badge-warning" : upToDate ? "badge-success" : "badge-neutral";
   return <div className="grid gap-4 md:grid-cols-2">
     <section className="panel p-5">
-      <div className="mb-3 flex items-center gap-2"><RefreshCw size={18} className="text-[#2563eb]" /><h2 className="font-semibold">系统更新</h2></div>
-      <p className="mb-4 text-[12px] leading-5 text-[var(--muted-foreground)]">检查 GitHub 主分支。执行更新前会自动备份数据库，完成后容器会重启。</p>
-      {updateInfo && <div className="mb-4 rounded-[6px] border border-[var(--border)] bg-[var(--surface-subtle)] p-3 text-[12px] leading-5"><div>当前版本：<span className="font-mono">{short(updateInfo.current)}</span></div><div>最新版本：<span className="font-mono">{short(updateInfo.latest?.sha)}</span>{updateInfo.latest?.message && ` · ${updateInfo.latest.message}`}</div>{updateInfo.status?.message && <div>最近状态：{updateInfo.status.message}</div>}{!updateInfo.enabled && <div className="text-[#a16207]">网页更新服务未启用，请在服务器重新执行一键安装。</div>}</div>}
-      <div className="flex flex-wrap gap-2"><button className="btn" type="button" disabled={!editable || checking} onClick={checkUpdate}>{checking ? <LoaderCircle size={15} className="animate-spin" /> : <RefreshCw size={15} />}检查更新</button><button className="btn btn-primary" type="button" disabled={!editable || updating || !updateInfo?.enabled || !updateInfo?.updateAvailable} onClick={requestUpdate}>{updating && <LoaderCircle size={15} className="animate-spin" />}立即更新</button></div>
+      <div className="mb-4 flex items-start justify-between gap-3"><div className="flex items-center gap-2"><RefreshCw size={18} className="text-[#2563eb]" /><h2 className="font-semibold">系统更新</h2></div><span className={`badge ${statusTone}`}>{checking || updateRunning ? <LoaderCircle size={13} className="animate-spin" /> : upToDate ? <CheckCircle2 size={13} /> : <CircleAlert size={13} />}{statusLabel}</span></div>
+      <div className="mb-4 overflow-hidden rounded-[6px] border border-[var(--border)] bg-[var(--surface-subtle)]">
+        <div className="grid grid-cols-[88px_minmax(0,1fr)] items-center border-b border-[var(--border)] px-3 py-2.5 text-[12px]"><span className="text-[var(--muted-foreground)]">当前版本</span><span className="font-mono font-semibold">{short(updateInfo?.current)}</span></div>
+        <div className="grid grid-cols-[88px_minmax(0,1fr)] items-start px-3 py-2.5 text-[12px]"><span className="text-[var(--muted-foreground)]">最新版本</span><span className="min-w-0 break-words"><span className="font-mono font-semibold">{short(updateInfo?.latest?.sha)}</span>{updateInfo?.latest?.message && <span className="ml-2 text-[var(--muted-foreground)]">{updateInfo.latest.message}</span>}</span></div>
+      </div>
+      {updateInfo?.status?.message && <p className="mb-3 text-[12px] text-[var(--muted-foreground)]">{updateInfo.status.message}</p>}
+      {updateInfo && !updateInfo.enabled && <p className="mb-3 text-[12px] text-[#a16207]">网页更新服务未启用，请在服务器重新执行一键安装。</p>}
+      <div className="flex flex-wrap gap-2"><button className="btn" type="button" disabled={!editable || checking || updateRunning} onClick={checkUpdate}>{checking ? <LoaderCircle size={15} className="animate-spin" /> : <RefreshCw size={15} />}检查更新</button><button className="btn btn-primary" type="button" title={upToDate ? "当前已是最新版本" : undefined} disabled={!editable || updating || updateRunning || !updateInfo?.enabled || !updateInfo?.updateAvailable} onClick={requestUpdate}>{(updating || updateRunning) && <LoaderCircle size={15} className="animate-spin" />}{updateRunning ? "更新中" : "立即更新"}</button></div>
     </section>
     <section className="panel p-5">
       <div className="mb-3 flex items-center gap-2"><Download size={18} className="text-[#087a55]" /><h2 className="font-semibold">备份与恢复</h2></div>

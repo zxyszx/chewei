@@ -1,30 +1,120 @@
 # 车位管理系统
 
-面向 Netflix、Spotify、HBO 等共享订阅平台的账号管理后台。系统统一管理共享账号、成员席位、续费历史和到期提醒，状态由席位数和在位车友自动计算。
+用于管理 Netflix、Spotify、HBO 等共享订阅账号、成员席位、续费记录和到期提醒的后台系统。
 
-## 已实现功能
+## 功能
 
-- 总览统计、近期共享账号和到期提醒
-- 共享账号表格 / 看板 / 日历三种视图
-- 共享账号详情抽屉、账号密码加密查看和复制
-- 车友添加、满员限制、退出、续费及历史留档
-- 跨平台车友管理、到期提醒和全局 `Command/Ctrl + K` 搜索
-- 共享账号、成员席位、续费记录、数据统计和操作日志
-- 完整 JSON 备份与事务恢复（含加密账号数据）
-- `admin` / `operator` 后端权限预留
-- Docker Compose + PostgreSQL 一键部署、备份恢复与网页更新
+- 总览统计、到期提醒和全局搜索
+- 共享账号表格、看板、日历三种视图
+- 成员席位分配、退出、续费和历史记录
+- 平台账号密码加密存储、按权限查看和复制
+- 车友、续费、数据统计和操作日志
+- 管理员与操作员权限
+- 完整数据备份与恢复
+- 页面检查更新和一键升级
+- Docker Compose + PostgreSQL 容器化部署
 
-## 技术栈
+## 一键安装
 
-- Next.js、React、TypeScript、Tailwind CSS
-- Prisma ORM、PostgreSQL
-- React Hook Form、Zod、date-fns
-- Recharts、Lucide Icons
-- Vitest、ESLint
+服务器需要提前安装：
+
+- Linux（推荐 Ubuntu、Debian）
+- Docker 和 Docker Compose Plugin
+- Git、curl、OpenSSL
+- root 权限或 sudo
+
+使用公开仓库一键拉取代码并安装：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/zxyszx/parking-space-manager/main/bootstrap.sh | sudo bash
+```
+
+安装过程中会要求设置管理员账号和密码。代码默认安装到 `/opt/parking-space-manager`，容器启动后访问：
+
+```text
+http://服务器IP:3000
+```
+
+脚本只拉取代码、生成密钥并启动 Docker 容器，不会绑定域名、修改 Nginx 或申请证书。
+
+### 在 1Panel 中使用
+
+1. 打开 1Panel 的“网站”，创建一个反向代理网站。
+2. 代理地址填写 `http://127.0.0.1:3000`。
+3. 在 1Panel 中绑定自己的域名。
+4. 在 1Panel 中申请并启用 HTTPS 证书。
+
+应用、数据库和数据卷仍由 Docker Compose 管理，网站反代与证书由 1Panel 管理。
+
+### 自定义安装目录或端口
+
+更换安装目录：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/zxyszx/parking-space-manager/main/bootstrap.sh | sudo PARKING_INSTALL_DIR=/opt/my-parking bash
+```
+
+安装完成后可编辑 `/opt/parking-space-manager/.env.production` 中的 `APP_PORT`，再执行：
+
+```bash
+cd /opt/parking-space-manager
+sudo ./install.sh update
+```
+
+## 更新
+
+管理员进入“系统设置”，默认就会看到“更新与备份”页面。点击“检查更新”后可直接升级；升级前系统会自动备份数据库，构建失败会恢复旧版本。
+
+也可以在服务器执行：
+
+```bash
+cd /opt/parking-space-manager
+sudo ./install.sh update
+```
+
+## 备份与恢复
+
+网页中的“系统设置 > 更新与备份”支持下载和恢复完整 JSON 备份。
+
+服务器数据库备份：
+
+```bash
+cd /opt/parking-space-manager
+sudo ./install.sh backup
+```
+
+恢复指定数据库备份：
+
+```bash
+cd /opt/parking-space-manager
+sudo ./install.sh restore backups/parking-年月日时间.dump
+```
+
+恢复时必须保留原来的 `.env.production`，尤其是 `ENCRYPTION_KEY`，否则无法解密已经保存的平台密码。
+
+## 常用管理命令
+
+```bash
+cd /opt/parking-space-manager
+sudo ./install.sh status   # 查看容器和健康状态
+sudo ./install.sh logs     # 查看应用日志
+sudo ./install.sh backup   # 立即备份数据库
+sudo ./install.sh update   # 拉取、备份并升级
+```
+
+## 手动安装
+
+不使用远程引导脚本时：
+
+```bash
+sudo git clone https://github.com/zxyszx/parking-space-manager.git /opt/parking-space-manager
+cd /opt/parking-space-manager
+sudo ./install.sh install
+```
 
 ## 本地开发
 
-要求 Node.js 22.18+ 和 PostgreSQL 15+。服务器一键安装使用内置的 Node.js 24 容器，不需要在宿主机另行安装 Node.js。
+需要 Node.js 22.18+ 和 PostgreSQL 15+：
 
 ```bash
 cp .env.example .env
@@ -34,32 +124,7 @@ npm run db:seed
 npm run dev
 ```
 
-访问 `http://localhost:3000`。Seed 默认创建本地测试管理员：
-
-- 账号：`admin`
-- 密码：`Parking@2026`
-
-首次使用前应在 `.env` 中更换密码和密钥。Seed 检测到已有共享账号时会自动跳过；只有明确重置测试数据时才使用 `FORCE_SEED=true npm run db:seed`。
-
-## 环境变量
-
-| 变量                    | 用途                                                          |
-| ----------------------- | ------------------------------------------------------------- |
-| `DATABASE_URL`          | PostgreSQL 连接地址                                           |
-| `AUTH_SECRET`           | 登录会话密钥，至少 32 位                                      |
-| `ENCRYPTION_KEY`        | 账号密码 AES-256-GCM 密钥，64 位十六进制                      |
-| `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` | 固定 Server Action 加密密钥，32 字节 Base64       |
-| `ADMIN_USERNAME`        | 首次容器启动时创建的管理员账号                           |
-| `ADMIN_PASSWORD`        | 首次容器启动时创建的管理员密码                           |
-| `SESSION_COOKIE_SECURE` | 留空时根据 1Panel 的 `X-Forwarded-Proto` 自动判断       |
-| `TZ`                    | 时区，推荐 `Asia/Shanghai`                                    |
-
-生成生产密钥：
-
-```bash
-openssl rand -base64 48  # AUTH_SECRET
-openssl rand -hex 32     # ENCRYPTION_KEY
-```
+访问 `http://localhost:3000`。本地 Seed 测试账号为 `admin`，密码为 `Parking@2026`，不要在生产环境使用这个密码。
 
 ## 质量检查
 
@@ -70,17 +135,8 @@ npm test
 npm run build
 ```
 
-## 一键部署
+更完整的迁移、回滚和故障排查说明见 [DEPLOYMENT.md](./DEPLOYMENT.md)。
 
-```bash
-chmod +x install.sh
-sudo ./install.sh install
-```
+## 开源协议
 
-脚本只启动容器和端口，不绑定域名、不修改 Nginx、不申请证书。在 1Panel 中反向代理到 `http://127.0.0.1:3000` 即可。已安装环境可在系统设置页更新，也可执行：
-
-```bash
-./install.sh update
-```
-
-生产部署、备份和恢复说明见 [DEPLOYMENT.md](./DEPLOYMENT.md)。
+[MIT License](./LICENSE)
