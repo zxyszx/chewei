@@ -1,128 +1,30 @@
 import { addDays, format, startOfMonth, subMonths } from "date-fns";
-import { CalendarClock, CircleParking, Coins, UsersRound } from "lucide-react";
+import { CalendarClock, ChartNoAxesCombined, Coins, UsersRound } from "lucide-react";
 import { AnalyticsCharts } from "@/components/analytics-charts";
-import { PageHeader } from "@/components/ui";
-import { databaseToday, monthRange, slotStatus } from "@/lib/dates";
+import { MetricCard, PageHeader, ProgressBar } from "@/components/ui";
+import { databaseToday, dayDiff, monthRange } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
+import { seatMetrics } from "@/lib/seat-metrics";
 
 export const metadata = { title: "数据统计" };
 
 export default async function AnalyticsPage() {
-  const now = new Date();
-  const today = databaseToday(now);
-  const [platforms, members, renewals, expiring7, expiring30] =
-    await Promise.all([
-      prisma.platform.findMany({
-        include: {
-          parkingSlots: {
-            include: { members: { where: { status: "ACTIVE" } } },
-          },
-        },
-        orderBy: { createdAt: "asc" },
-      }),
-      prisma.member.count({ where: { status: "ACTIVE" } }),
-      prisma.renewal.findMany({
-        where: { createdAt: { gte: startOfMonth(subMonths(now, 5)) } },
-        orderBy: { createdAt: "asc" },
-      }),
-      prisma.member.count({
-        where: {
-          status: "ACTIVE",
-          expireDate: { gte: today, lte: addDays(today, 7) },
-        },
-      }),
-      prisma.member.count({
-        where: {
-          status: "ACTIVE",
-          expireDate: { gte: today, lte: addDays(today, 30) },
-        },
-      }),
-    ]);
-  const slots = platforms.flatMap((p) => p.parkingSlots);
-  const currentRenewals = renewals.filter(
-    (r) => r.createdAt >= monthRange(now).gte,
-  );
-  const renewalData = Array.from({ length: 6 }, (_, index) => {
-    const date = subMonths(now, 5 - index);
-    const key = format(date, "yyyy-MM");
-    const monthRows = renewals.filter(
-      (r) => format(r.createdAt, "yyyy-MM") === key,
-    );
-    return {
-      month: format(date, "M 月"),
-      amount: monthRows.reduce((sum, row) => sum + Number(row.amount), 0),
-      count: monthRows.length,
-    };
-  });
-  const metrics = [
-    [
-      "合租车位",
-      slots.length,
-      `${slots.filter((s) => slotStatus(s.capacity, s.members.length, s.status) === "满").length} 个已满`,
-      CircleParking,
-      "text-[#2563eb] bg-[#eef4ff]",
-    ],
-    [
-      "车友总数",
-      members,
-      "当前在位",
-      UsersRound,
-      "text-[#087a55] bg-[#eaf8f1]",
-    ],
-    [
-      "本月续费金额",
-      `¥ ${currentRenewals.reduce((sum, r) => sum + Number(r.amount), 0).toFixed(2)}`,
-      `${currentRenewals.length} 人次`,
-      Coins,
-      "text-[#b45309] bg-[#fff5e8]",
-    ],
-    [
-      "未来到期",
-      expiring7,
-      `7 天内 · 30 天内 ${expiring30}`,
-      CalendarClock,
-      "text-[#c93636] bg-[#fff0f0]",
-    ],
-  ] as const;
-  return (
-    <div className="mx-auto max-w-[1700px] space-y-4">
-      <PageHeader
-        title="数据统计"
-        description="合租车位使用率、续费与到期趋势"
-      />
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {metrics.map(([label, value, detail, Icon, tone]) => (
-          <div className="panel flex items-center gap-4 p-4" key={label}>
-            <div
-              className={`grid size-10 place-items-center rounded-[7px] ${tone}`}
-            >
-              <Icon size={20} />
-            </div>
-            <div>
-              <p className="text-[12px] text-[var(--muted-foreground)]">
-                {label}
-              </p>
-              <strong className="mt-1 block text-[22px] font-semibold tabular">
-                {value}
-              </strong>
-              <p className="mt-0.5 text-[11px] text-[var(--muted-foreground)]">
-                {detail}
-              </p>
-            </div>
-          </div>
-        ))}
-      </section>
-      <AnalyticsCharts
-        platformData={platforms.map((p) => ({
-          name: p.name,
-          slots: p.parkingSlots.length,
-          members: p.parkingSlots.reduce(
-            (sum, slot) => sum + slot.members.length,
-            0,
-          ),
-        }))}
-        renewalData={renewalData}
-      />
-    </div>
-  );
+  const now = new Date(); const today = databaseToday(now);
+  const [platforms, activeMembers, renewals, expiring30] = await Promise.all([
+    prisma.platform.findMany({ include: { parkingSlots: { where: { status: "ACTIVE" }, include: { members: { where: { status: "ACTIVE" } } } } }, orderBy: { createdAt: "asc" } }),
+    prisma.member.count({ where: { status: "ACTIVE", slot: { status: "ACTIVE" } } }),
+    prisma.renewal.findMany({ where: { createdAt: { gte: startOfMonth(subMonths(now, 5)) } }, orderBy: { createdAt: "asc" } }),
+    prisma.member.findMany({ where: { status: "ACTIVE", expireDate: { gte: today, lte: addDays(today, 30) } }, select: { expireDate: true } }),
+  ]);
+  const slots = platforms.flatMap((platform) => platform.parkingSlots);
+  const { capacity, occupied, utilization } = seatMetrics(slots);
+  const currentRenewals = renewals.filter((record) => record.createdAt >= monthRange(now).gte);
+  const renewalData = Array.from({ length: 6 }, (_, index) => { const date = subMonths(now, 5 - index); const key = format(date, "yyyy-MM"); return { month: format(date, "M 月"), amount: renewals.filter((record) => format(record.createdAt, "yyyy-MM") === key).reduce((sum, record) => sum + Number(record.amount), 0) }; });
+  const expiryData = [{ range: "今天", count: expiring30.filter((member) => dayDiff(member.expireDate, today) === 0).length }, { range: "1-7 天", count: expiring30.filter((member) => { const days = dayDiff(member.expireDate, today); return days >= 1 && days <= 7; }).length }, { range: "8-15 天", count: expiring30.filter((member) => { const days = dayDiff(member.expireDate, today); return days >= 8 && days <= 15; }).length }, { range: "16-30 天", count: expiring30.filter((member) => { const days = dayDiff(member.expireDate, today); return days >= 16 && days <= 30; }).length }];
+  const platformData = platforms.map((platform) => { const platformCapacity = platform.parkingSlots.reduce((sum, slot) => sum + slot.capacity, 0); const used = platform.parkingSlots.reduce((sum, slot) => sum + slot.members.length, 0); return { name: platform.name, used, capacity: platformCapacity, percent: platformCapacity ? Math.round((used / platformCapacity) * 100) : 0 }; }).filter((item) => item.capacity > 0);
+  return <div className="mx-auto max-w-[1700px] space-y-4">
+    <PageHeader title="数据统计" description="了解席位利用率、收入与到期趋势" />
+    <section className="grid grid-cols-2 gap-3 lg:grid-cols-4"><MetricCard label="整体席位利用率" value={`${utilization}%`} icon={ChartNoAxesCombined} tone="green" detail={<><ProgressBar value={utilization} label={`整体席位利用率 ${utilization}%`} tone="green" /><span className="mt-1 block">{occupied} / {capacity} 个席位</span></>} /><MetricCard label="在位车友" value={activeMembers} icon={UsersRound} tone="green" detail="有效账号内在位成员" /><MetricCard label="本月续费收入" value={`¥ ${currentRenewals.reduce((sum, record) => sum + Number(record.amount), 0).toFixed(2)}`} icon={Coins} tone="orange" detail={`${currentRenewals.length} 笔续费`} /><MetricCard label="30 天内到期" value={expiring30.length} icon={CalendarClock} tone="red" detail="需要提前提醒" /></section>
+    <AnalyticsCharts platformData={platformData} renewalData={renewalData} seatData={[{ name: "已占用", value: occupied, color: "var(--chart-2)" }, { name: "剩余", value: Math.max(0, capacity - occupied), color: "var(--chart-4)" }]} expiryData={expiryData} />
+  </div>;
 }

@@ -1,439 +1,68 @@
-import { addDays, format, startOfMonth } from "date-fns";
-import {
-  Activity,
-  AlertTriangle,
-  ArrowRight,
-  BellRing,
-  CircleParking,
-  CircleCheck,
-  Clock3,
-  ReceiptText,
-  ShieldAlert,
-  UsersRound,
-} from "lucide-react";
+import { format, startOfMonth } from "date-fns";
+import { Activity, AlertTriangle, ArrowRight, BellRing, CalendarClock, CircleParking, Plus, ReceiptText, ShieldAlert, UsersRound } from "lucide-react";
 import Link from "next/link";
-import { ContactValue } from "@/components/contact-method";
 import { PlatformIcon } from "@/components/platform-icon";
-import { RenewButton } from "@/components/renew-button";
-import type { MemberItem } from "@/components/slot-manager";
-import { Badge, PageHeader } from "@/components/ui";
-import {
-  configuredReminderDays,
-  databaseToday,
-  expiryLabel,
-  slotStatus,
-} from "@/lib/dates";
+import { Badge, MetricCard, PageHeader, ProgressBar } from "@/components/ui";
+import { databaseToday, dayDiff, expiryLabel, slotStatus } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
+import { seatMetrics } from "@/lib/seat-metrics";
 
 export const metadata = { title: "总览" };
 
 const operationNames: Record<string, string> = {
-  CREATE_SLOT: "创建合租车位",
-  UPDATE_SLOT: "编辑合租车位",
-  DELETE_SLOT: "删除合租车位",
-  ADD_MEMBER: "添加车友",
-  UPDATE_MEMBER: "编辑车友",
-  DELETE_MEMBER: "删除车友",
-  EXIT_MEMBER: "车友退出",
-  MOVE_MEMBER: "更换账号席位",
-  RENEW_MEMBER: "续费",
-  VIEW_PASSWORD: "查看密码",
-  UPDATE_SETTINGS: "修改设置",
-  UPDATE_PLATFORM: "修改平台",
-  CREATE_PLATFORM: "新增平台",
-  DELETE_PLATFORM: "删除平台",
-  CREATE_USER: "创建后台账号",
-  UPDATE_USER: "修改后台账号",
+  CREATE_SLOT: "创建合租车位", UPDATE_SLOT: "编辑合租车位", DELETE_SLOT: "删除合租车位",
+  ADD_MEMBER: "添加车友", UPDATE_MEMBER: "编辑车友", DELETE_MEMBER: "删除车友",
+  EXIT_MEMBER: "车友退出", MOVE_MEMBER: "更换账号席位", RENEW_MEMBER: "续费",
+  VIEW_PASSWORD: "查看密码", UPDATE_SETTINGS: "修改设置", UPDATE_PLATFORM: "修改平台",
+  CREATE_PLATFORM: "新增平台", DELETE_PLATFORM: "删除平台", CREATE_USER: "创建后台账号", UPDATE_USER: "修改后台账号",
 };
 
-function Stat({
-  label,
-  value,
-  detail,
-  icon: Icon,
-  tone,
-}: {
-  label: string;
-  value: number;
-  detail: string;
-  icon: typeof CircleParking;
-  tone: string;
-}) {
-  return (
-    <div className="panel flex min-h-[104px] items-center gap-4 p-4">
-      <div
-        className={`grid size-10 shrink-0 place-items-center rounded-[8px] ${tone}`}
-      >
-        <Icon size={20} />
-      </div>
-      <div>
-        <p className="text-[12px] text-[var(--muted-foreground)]">{label}</p>
-        <strong className="mt-0.5 block text-[25px] font-semibold leading-8 tabular">
-          {value}
-        </strong>
-        <p className="mt-0.5 text-[11px] text-[var(--muted-foreground)]">
-          {detail}
-        </p>
-      </div>
-    </div>
-  );
-}
-
 export default async function OverviewPage() {
-  const reminderSetting = await prisma.setting.findUnique({
-    where: { key: "reminderDays" },
-  });
-  const reminderCutoff = Math.max(
-    ...configuredReminderDays(reminderSetting?.value),
-  );
   const today = databaseToday();
-  const [
-    slots,
-    members,
-    reminders,
-    upcoming,
-    expired,
-    monthlyRevenue,
-    recentOperations,
-  ] = await Promise.all([
-    prisma.parkingSlot.findMany({
-      include: {
-        platform: true,
-        members: {
-          where: { status: "ACTIVE" },
-          orderBy: { expireDate: "asc" },
-        },
-      },
-      orderBy: { updatedAt: "desc" },
-    }),
-    prisma.member.count({ where: { status: "ACTIVE" } }),
-    prisma.member.findMany({
-      where: {
-        status: "ACTIVE",
-        expireDate: { lte: addDays(today, reminderCutoff) },
-      },
-      include: { slot: { include: { platform: true } } },
-      orderBy: { expireDate: "asc" },
-      take: 8,
-    }),
-    prisma.member.count({
-      where: {
-        status: "ACTIVE",
-        expireDate: { gte: today, lte: addDays(today, reminderCutoff) },
-      },
-    }),
-    prisma.member.count({
-      where: { status: "ACTIVE", expireDate: { lt: today } },
-    }),
-    prisma.renewal.aggregate({
-      where: { createdAt: { gte: startOfMonth(today) } },
-      _sum: { amount: true },
-    }),
-    prisma.operationLog.findMany({
-      include: { user: true },
-      orderBy: { createdAt: "desc" },
-      take: 3,
-    }),
+  const [slots, monthlyRevenue, recentOperations] = await Promise.all([
+    prisma.parkingSlot.findMany({ include: { platform: true, members: { where: { status: "ACTIVE" }, orderBy: { expireDate: "asc" } } }, orderBy: { updatedAt: "desc" } }),
+    prisma.renewal.aggregate({ where: { createdAt: { gte: startOfMonth(today) } }, _sum: { amount: true } }),
+    prisma.operationLog.findMany({ include: { user: true }, orderBy: { createdAt: "desc" }, take: 4 }),
   ]);
-  const full = slots.filter(
-    (slot) =>
-      slotStatus(slot.capacity, slot.members.length, slot.status) === "满",
-  ).length;
-  const open = slots.filter(
-    (slot) => slot.members.length < slot.capacity && slot.status === "ACTIVE",
-  ).length;
-  const dueToday = reminders.filter(
-    (member) =>
-      format(member.expireDate, "yyyy-MM-dd") === format(today, "yyyy-MM-dd"),
-  ).length;
-  const abnormal = slots.filter(
-    (slot) => slot.status === "ABNORMAL" || slot.status === "PAUSED",
-  ).length;
-  return (
-    <div className="mx-auto max-w-[1700px] space-y-4">
-      <PageHeader
-        title="总览"
-        description={`当前共有 ${members} 位在位车友，数据更新于刚刚`}
-      />
-      <section
-        className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5"
-        aria-label="关键数据"
-      >
-        <Stat
-          label="合租车位"
-          value={slots.length}
-          detail="所有平台"
-          icon={CircleParking}
-          tone="bg-[#eef4ff] text-[#2563eb]"
-        />
-        <Stat
-          label="已满账号"
-          value={full}
-          detail={`${slots.length ? Math.round((full / slots.length) * 100) : 0}%`}
-          icon={CircleCheck}
-          tone="bg-[#eaf8f1] text-[#087a55]"
-        />
-        <Stat
-          label="有空席位"
-          value={open}
-          detail="可继续添加车友"
-          icon={UsersRound}
-          tone="bg-[#fff5e8] text-[#b45309]"
-        />
-        <Stat
-          label="即将到期"
-          value={upcoming}
-          detail={`未来 ${reminderCutoff} 天`}
-          icon={Clock3}
-          tone="bg-[#fff4e5] text-[#c05b0a]"
-        />
-        <Stat
-          label="已过期"
-          value={expired}
-          detail="需要处理"
-          icon={AlertTriangle}
-          tone="bg-[#fff0f0] text-[#c93636]"
-        />
-      </section>
-      <section
-        className="grid items-start gap-3 lg:grid-cols-[repeat(3,minmax(0,0.75fr))_minmax(320px,1.75fr)]"
-        aria-label="运营概况"
-      >
-        <Link
-          href="/renewals"
-          className="panel group flex min-h-[132px] flex-col justify-between p-4 transition-colors hover:border-[var(--border-strong)]"
-        >
-          <span className="flex items-center justify-between text-[var(--muted-foreground)]">
-            <ReceiptText size={18} />
-            <ArrowRight
-              size={14}
-              className="transition-transform group-hover:translate-x-0.5"
-            />
-          </span>
-          <span>
-            <strong className="block text-[22px] tabular">
-              ¥ {Number(monthlyRevenue._sum.amount || 0).toFixed(2)}
-            </strong>
-            <span className="mt-1 block text-[12px] text-[var(--muted-foreground)]">
-              本月续费收入
-            </span>
-          </span>
-        </Link>
-        <Link
-          href="/reminders"
-          className="panel group flex min-h-[132px] flex-col justify-between p-4 transition-colors hover:border-[var(--border-strong)]"
-        >
-          <span className="flex items-center justify-between text-[var(--warning)]">
-            <BellRing size={18} />
-            <ArrowRight
-              size={14}
-              className="transition-transform group-hover:translate-x-0.5"
-            />
-          </span>
-          <span>
-            <strong className="block text-[22px] tabular">{dueToday}</strong>
-            <span className="mt-1 block text-[12px] text-[var(--muted-foreground)]">
-              今日到期提醒
-            </span>
-          </span>
-        </Link>
-        <Link
-          href="/slots"
-          className="panel group flex min-h-[132px] flex-col justify-between p-4 transition-colors hover:border-[var(--border-strong)]"
-        >
-          <span className="flex items-center justify-between text-[var(--danger)]">
-            <ShieldAlert size={18} />
-            <ArrowRight
-              size={14}
-              className="transition-transform group-hover:translate-x-0.5"
-            />
-          </span>
-          <span>
-            <strong className="block text-[22px] tabular">{abnormal}</strong>
-            <span className="mt-1 block text-[12px] text-[var(--muted-foreground)]">
-              异常或停用账号
-            </span>
-          </span>
-        </Link>
-        <div className="panel h-[132px] overflow-hidden">
-          <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
-            <span className="flex items-center gap-2 font-semibold">
-              <Activity size={16} />
-              最近操作
-            </span>
-            <Link href="/logs" className="text-[11px] text-[var(--accent)]">
-              查看日志
-            </Link>
-          </div>
-          <div className="divide-y divide-[var(--border)]">
-            {recentOperations.length ? (
-              recentOperations.map((log) => (
-                <div
-                  key={log.id}
-                  className="flex items-center gap-3 px-4 py-2 text-[11px]"
-                >
-                  <span className="size-1.5 shrink-0 rounded-full bg-[var(--accent)]" />
-                  <span className="min-w-0 flex-1 truncate">
-                    <strong>{log.user.username}</strong> ·{" "}
-                    {operationNames[log.action] || log.action}
-                  </span>
-                  <time className="shrink-0 tabular text-[var(--muted-foreground)]">
-                    {format(log.createdAt, "MM.dd HH:mm")}
-                  </time>
-                </div>
-              ))
-            ) : (
-              <p className="px-4 py-5 text-[12px] text-[var(--muted-foreground)]">
-                暂无操作记录
-              </p>
-            )}
-          </div>
-        </div>
-      </section>
-      <section className="panel overflow-hidden">
-        <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3.5">
-          <div>
-            <h2 className="font-semibold">最近合租车位</h2>
-            <p className="mt-0.5 text-[11px] text-[var(--muted-foreground)]">
-              最近更新的登录账号与成员席位
-            </p>
-          </div>
-          <Link className="btn min-h-8 text-[12px]" href="/slots">
-            查看全部 <ArrowRight size={14} />
-          </Link>
-        </div>
-        <div className="data-wrap">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>账号编号</th>
-                <th>平台</th>
-                <th>登录账号</th>
-                <th>状态</th>
-                <th>成员席位</th>
-                <th>平台续费日</th>
-                <th>成员最近到期</th>
-              </tr>
-            </thead>
-            <tbody>
-              {slots.slice(0, 10).map((slot) => {
-                const status = slotStatus(
-                  slot.capacity,
-                  slot.members.length,
-                  slot.status,
-                );
-                const next = slot.members[0];
-                return (
-                  <tr key={slot.id}>
-                    <td>
-                      <Link
-                        href={`/slots?open=${slot.id}`}
-                        className="font-semibold"
-                      >
-                        #{slot.slotNumber}
-                      </Link>
-                    </td>
-                    <td>
-                      <span className="flex items-center gap-2">
-                        <PlatformIcon
-                          slug={slot.platform.slug}
-                          name={slot.platform.name}
-                          icon={slot.platform.icon}
-                          size={15}
-                        />
-                        {slot.platform.name}
-                      </span>
-                    </td>
-                    <td className="text-[#2457bd]">{slot.accountEmail}</td>
-                    <td>
-                      <Badge
-                        tone={
-                          status === "满"
-                            ? "success"
-                            : status === "空闲"
-                              ? "neutral"
-                              : "urgent"
-                        }
-                      >
-                        {status}
-                      </Badge>
-                    </td>
-                    <td>
-                      {slot.members.length}/{slot.capacity}
-                    </td>
-                    <td>每月 {slot.billingDay} 日</td>
-                    <td>
-                      {next ? (
-                        <Badge tone={expiryLabel(next.expireDate).tone}>
-                          {expiryLabel(next.expireDate).text}
-                        </Badge>
-                      ) : (
-                        "-"
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </section>
-      <section className="panel p-4">
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <h2 className="font-semibold">近期到期提醒</h2>
-            <p className="mt-0.5 text-[11px] text-[var(--muted-foreground)]">
-              按紧急程度排列
-            </p>
-          </div>
-          <Link className="btn min-h-8 text-[12px]" href="/reminders">
-            <BellRing size={14} />
-            查看全部提醒
-          </Link>
-        </div>
-        {reminders.length ? (
-          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
-            {reminders.map((member) => {
-              const expiry = expiryLabel(member.expireDate);
-              const item: MemberItem = {
-                id: member.id,
-                nickname: member.nickname,
-                contact: member.contact,
-                contactType: member.contactType,
-                startDate: member.startDate.toISOString(),
-                expireDate: member.expireDate.toISOString(),
-                status: member.status,
-                note: member.note,
-              };
-              return (
-                <article
-                  key={member.id}
-                  className="rounded-[6px] border border-[var(--border)] bg-white p-3.5 transition-colors hover:border-[#bac5d6]"
-                >
-                  <Link href={`/slots?open=${member.slotId}`} className="block">
-                    <div className="flex items-start justify-between gap-2">
-                      <strong className="truncate">{member.nickname}</strong>
-                      <Badge tone={expiry.tone}>{expiry.text}</Badge>
-                    </div>
-                    <p className="mt-2 text-[12px] text-[var(--muted-foreground)]">
-                      {member.slot.platform.name} · 账号 #
-                      {member.slot.slotNumber}
-                    </p>
-                  </Link>
-                  <div className="mt-3 flex items-center justify-between gap-2">
-                    <p className="min-w-0 truncate text-[11px] text-[#687386]">
-                      <ContactValue type={member.contactType} value={member.contact} />
-                    </p>
-                    <RenewButton member={item} compact />
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="empty">未来 {reminderCutoff} 天没有到期提醒</div>
-        )}
-      </section>
-    </div>
-  );
+
+  const { activeSlots, capacity: totalCapacity, occupied, remaining, utilization } = seatMetrics(slots);
+  const occupancy = Math.round(utilization);
+  const allMembers = slots.flatMap((slot) => slot.members.map((member) => ({ ...member, slot })));
+  const dueToday = allMembers.filter((member) => dayDiff(member.expireDate, today) === 0).length;
+  const due7 = allMembers.filter((member) => { const days = dayDiff(member.expireDate, today); return days >= 0 && days <= 7; }).length;
+  const due30 = allMembers.filter((member) => { const days = dayDiff(member.expireDate, today); return days >= 0 && days <= 30; }).length;
+  const expired = allMembers.filter((member) => dayDiff(member.expireDate, today) < 0).length;
+  const abnormal = slots.filter((slot) => slot.status === "ABNORMAL" || slot.status === "PAUSED").length;
+  const pendingItems = [
+    ["今日到期", dueToday, "/reminders?range=today", CalendarClock, "red"],
+    ["7 天内到期", due7, "/reminders?range=7", BellRing, "orange"],
+    ["30 天内到期", due30, "/reminders?range=30", CalendarClock, "orange"],
+    ["已过期", expired, "/reminders?range=expired", AlertTriangle, "red"],
+    ["异常或停用账号", abnormal, "/slots?status=attention", ShieldAlert, "red"],
+  ] as const;
+  const platforms = [...new Map(slots.map((slot) => [slot.platformId, slot.platform])).values()].map((platform) => {
+    const platformSlots = activeSlots.filter((slot) => slot.platformId === platform.id);
+    const capacity = platformSlots.reduce((sum, slot) => sum + slot.capacity, 0);
+    const used = platformSlots.reduce((sum, slot) => sum + slot.members.length, 0);
+    return { ...platform, capacity, used, percentage: capacity ? Math.round((used / capacity) * 100) : 0 };
+  }).filter((platform) => platform.capacity > 0).sort((a, b) => b.percentage - a.percentage);
+
+  return <div className="mx-auto max-w-[1700px] space-y-5">
+    <PageHeader title="总览" description="共享账号、席位与续费经营概况" actions={<Link href="/slots?create=1" className="btn btn-primary"><Plus size={17} />新增车位</Link>} />
+    <section className="grid grid-cols-2 gap-4 xl:grid-cols-4" aria-label="核心指标">
+      <MetricCard label="合租账号" value={slots.length} detail={`${activeSlots.length} 个有效账号`} icon={CircleParking} tone="blue" />
+      <article className="panel metric-card col-span-2 xl:col-span-1"><div className="flex items-center justify-between gap-3"><div><p className="text-[13px] font-medium text-[var(--muted-foreground)]">在位席位 / 总席位</p><strong className="mt-1 block text-[26px] font-bold tabular"><span className="text-[var(--accent)]">{occupied}</span> / {totalCapacity}</strong></div><span className="badge badge-blue text-[14px]">{occupancy}%</span></div><div className="mt-4"><ProgressBar value={occupancy} label={`整体席位占用率 ${occupancy}%`} /><p className="mt-2 text-[12px] text-[var(--muted-foreground)]">整体占用率 {occupancy}%</p></div></article>
+      <MetricCard label="剩余席位" value={remaining} detail="有效账号可分配席位" icon={UsersRound} tone="green" />
+      <MetricCard label="本月续费收入" value={`¥ ${Number(monthlyRevenue._sum.amount || 0).toFixed(2)}`} detail="本月已到账金额" icon={ReceiptText} tone="orange" />
+    </section>
+
+    <section aria-labelledby="pending-title"><h2 id="pending-title" className="section-heading mb-3">待处理事项</h2><div className="panel grid overflow-hidden sm:grid-cols-2 xl:grid-cols-5">{pendingItems.map(([label, value, href, Icon, tone], index) => <Link key={label} href={href} className={`group flex min-h-[88px] items-center gap-3 border-b border-[var(--border)] p-4 transition-colors hover:bg-[var(--surface-subtle)] sm:[&:nth-child(odd)]:border-r xl:border-b-0 xl:border-r ${index === pendingItems.length - 1 ? "xl:border-r-0" : ""}`}><span className={`metric-icon size-10 ${tone === "red" ? "icon-tone-red" : "icon-tone-orange"}`}><Icon size={19} /></span><span className="min-w-0 flex-1"><span className="block text-[13px] font-semibold">{label}</span><strong className={`mt-1 block text-[20px] tabular ${tone === "red" ? "text-[var(--danger)]" : "text-[var(--warning)]"}`}>{value}</strong></span><ArrowRight size={16} className="text-[var(--muted-foreground)] transition-transform group-hover:translate-x-0.5" /></Link>)}</div></section>
+
+    <section className="grid items-start gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+      <div><div className="mb-3 flex items-center justify-between"><h2 className="section-heading">平台占用率</h2><Link href="/analytics" className="text-[13px] font-semibold text-[var(--accent)]">查看统计</Link></div><div className="panel divide-y divide-[var(--border)]">{platforms.map((platform) => <div key={platform.id} className="grid grid-cols-[minmax(110px,0.7fr)_minmax(120px,1.8fr)_72px] items-center gap-4 px-5 py-4"><span className="flex min-w-0 items-center gap-3"><PlatformIcon slug={platform.slug} name={platform.name} icon={platform.icon} size={28} className="border border-[var(--border)]" /><strong className="truncate text-[13px]">{platform.name}</strong></span><ProgressBar value={platform.percentage} label={`${platform.name} 席位占用率 ${platform.percentage}%`} /><span className="text-right text-[12px] tabular"><strong>{platform.percentage}%</strong><span className="mt-0.5 block text-[var(--muted-foreground)]">{platform.used}/{platform.capacity}</span></span></div>)}{!platforms.length && <div className="empty">暂无有效平台席位</div>}</div></div>
+      <div><div className="mb-3 flex items-center justify-between"><h2 className="section-heading">最近操作</h2><Link href="/logs" className="text-[13px] font-semibold text-[var(--accent)]">查看全部</Link></div><div className="panel divide-y divide-[var(--border)]">{recentOperations.map((log) => <div key={log.id} className="flex min-h-[66px] items-center gap-3 px-5 py-3"><span className="metric-icon size-9 icon-tone-blue"><Activity size={17} /></span><div className="min-w-0 flex-1"><p className="truncate text-[13px]"><strong>{log.user.username}</strong> · {operationNames[log.action] || log.action}</p><p className="mt-1 text-[11px] text-[var(--muted-foreground)]">{log.resourceType}{log.resourceId ? ` · ${log.resourceId.slice(0, 8)}` : ""}</p></div><time className="shrink-0 text-[11px] tabular text-[var(--muted-foreground)]">{format(log.createdAt, "MM.dd HH:mm")}</time></div>)}{!recentOperations.length && <div className="empty">暂无操作记录</div>}</div></div>
+    </section>
+
+    <section><div className="mb-3 flex items-center justify-between"><h2 className="section-heading">最近合租账号</h2><Link href="/slots" className="text-[13px] font-semibold text-[var(--accent)]">查看全部</Link></div><div className="panel overflow-hidden"><div className="data-wrap responsive-table-desktop"><table className="data-table"><thead><tr><th>账号编号</th><th>平台</th><th>登录账号</th><th>状态</th><th>席位占用</th><th>最近到期</th></tr></thead><tbody>{slots.slice(0, 8).map((slot) => { const status = slotStatus(slot.capacity, slot.members.length, slot.status); const next = slot.members[0]; const percent = slot.capacity ? (slot.members.length / slot.capacity) * 100 : 0; return <tr key={slot.id}><td><Link href={`/slots?open=${slot.id}`} className="font-semibold text-[var(--accent)]">#{slot.slotNumber}</Link></td><td><span className="flex items-center gap-2"><PlatformIcon slug={slot.platform.slug} name={slot.platform.name} icon={slot.platform.icon} size={18} />{slot.platform.name}</span></td><td className="max-w-[280px] truncate">{slot.accountEmail}</td><td><Badge tone={status === "满" ? "success" : status === "异常" ? "danger" : status === "暂停" ? "warning" : "blue"}>{status}</Badge></td><td><div className="flex min-w-[150px] items-center gap-3"><span className="w-9 tabular">{slot.members.length}/{slot.capacity}</span><div className="flex-1"><ProgressBar value={percent} label={`${slot.platform.name} #${slot.slotNumber} 席位占用`} /></div></div></td><td>{next ? <Badge tone={expiryLabel(next.expireDate, today).tone}>{expiryLabel(next.expireDate, today).text}</Badge> : "-"}</td></tr>; })}</tbody></table></div><div className="mobile-record-list">{slots.slice(0, 6).map((slot) => { const status = slotStatus(slot.capacity, slot.members.length, slot.status); const next = slot.members[0]; const percent = slot.capacity ? (slot.members.length / slot.capacity) * 100 : 0; return <Link href={`/slots?open=${slot.id}`} key={slot.id} className="mobile-record block"><div className="flex items-start gap-3"><PlatformIcon slug={slot.platform.slug} name={slot.platform.name} icon={slot.platform.icon} size={36} className="border border-[var(--border)]" /><div className="min-w-0 flex-1"><div className="flex items-center justify-between gap-2"><strong className="truncate">{slot.accountEmail}</strong><Badge tone={status === "满" ? "success" : "blue"}>{status}</Badge></div><p className="mt-1 text-[12px] text-[var(--muted-foreground)]">{slot.platform.name} #{slot.slotNumber}</p></div></div><div className="mt-3 flex items-center gap-3"><div className="flex-1"><ProgressBar value={percent} label={`席位占用 ${slot.members.length}/${slot.capacity}`} /></div><span className="text-[12px] tabular">{slot.members.length}/{slot.capacity}</span>{next && <Badge tone={expiryLabel(next.expireDate, today).tone}>{expiryLabel(next.expireDate, today).text}</Badge>}</div></Link>; })}</div></div></section>
+  </div>;
 }

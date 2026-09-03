@@ -5,7 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   Bell, ChartNoAxesCombined, ChevronDown, CreditCard, History, House,
-  LoaderCircle, LogOut, Menu, PanelLeft, ParkingCircle,
+  LayoutGrid, LoaderCircle, LogOut, Menu, PanelLeft, ParkingCircle,
   Settings, UsersRound, X,
 } from "lucide-react";
 import { logoutAction } from "@/app/actions";
@@ -59,7 +59,7 @@ function SidebarToggle({ compact, toggle }: { compact: boolean; toggle: () => vo
 }
 
 function Sidebar({ reminderCount, username, role, compact = false, close, toggleCompact }: { reminderCount: number; username: string; role: string; compact?: boolean; close?: () => void; toggleCompact?: () => void }) {
-  return <aside className={cn("sidebar flex h-full shrink-0 flex-col border-r border-[var(--border)] transition-[width] duration-200", compact ? "w-[56px]" : "w-[224px]")}>
+  return <aside className={cn("sidebar flex h-full shrink-0 flex-col border-r border-[var(--border)] transition-[width] duration-200", compact ? "w-[56px]" : "w-[240px]")}>
     <div className={cn("flex h-14 shrink-0 items-center", compact ? "justify-center" : "gap-2 px-3")}>
       {compact ? toggleCompact && <SidebarToggle compact toggle={toggleCompact} /> : <><div className="grid size-8 shrink-0 place-items-center rounded-full bg-[var(--primary)] text-[var(--primary-foreground)]"><ParkingCircle size={19} /></div><strong className="min-w-0 flex-1 truncate text-[14px]">车位管理系统</strong>{toggleCompact && <SidebarToggle compact={false} toggle={toggleCompact} />}</>}
       {close && <button autoFocus onClick={close} className="sidebar-icon-button ml-auto" aria-label="关闭菜单"><X size={18} /></button>}
@@ -75,6 +75,18 @@ function Sidebar({ reminderCount, username, role, compact = false, close, toggle
   </aside>;
 }
 
+function MobileBottomNav({ reminderCount, openMore }: { reminderCount: number; openMore: () => void }) {
+  const pathname = usePathname();
+  const items = [["/", "总览", House], ["/slots", "车位", ParkingCircle], ["/members", "车友", UsersRound], ["/reminders", "提醒", Bell]] as const;
+  return <nav className="mobile-bottom-nav mobile-only" aria-label="移动端主导航">
+    {items.map(([href, label, Icon]) => {
+      const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
+      return <Link key={href} href={href} className={cn("mobile-bottom-link", active && "mobile-bottom-link-active")} aria-current={active ? "page" : undefined}><span className="relative"><Icon size={21} />{href === "/reminders" && reminderCount > 0 && <span className="mobile-bottom-badge">{reminderCount > 99 ? "99+" : reminderCount}</span>}</span><span>{label}</span></Link>;
+    })}
+    <button type="button" className="mobile-bottom-link" onClick={openMore}><LayoutGrid size={21} /><span>更多</span></button>
+  </nav>;
+}
+
 export function AppShell({ children, reminderCount, username, role }: { children: React.ReactNode; reminderCount: number; username: string; role: string }) {
   const [mobileNav, setMobileNav] = useState(false);
   const [sidebarCompact, setSidebarCompact] = useState(false);
@@ -88,11 +100,12 @@ export function AppShell({ children, reminderCount, username, role }: { children
     window.localStorage.setItem("parking-sidebar", current ? "expanded" : "compact");
     return !current;
   });
-  return <div className="flex min-h-dvh" style={{ "--sidebar-width": sidebarCompact ? "56px" : "224px" } as React.CSSProperties}>
+  return <div className="flex min-h-dvh" style={{ "--sidebar-width": sidebarCompact ? "56px" : "240px" } as React.CSSProperties}>
     <a href="#main-content" className="skip-link">跳到主要内容</a>
     <div className="fixed inset-y-0 left-0 z-40 desktop-only"><Sidebar reminderCount={reminderCount} username={username} role={role} compact={sidebarCompact} toggleCompact={toggleSidebar} /></div>
     <button className="mobile-sidebar-trigger mobile-only" onClick={() => setMobileNav(true)} aria-label="打开侧栏" title="打开侧栏"><Menu size={19} /></button>
-    {mobileNav && <div className="fixed inset-0 z-[90] bg-black/35" onClick={() => setMobileNav(false)}><div role="dialog" aria-modal="true" aria-label="移动导航" className="h-full w-[224px]" onClick={(event) => event.stopPropagation()}><Sidebar reminderCount={reminderCount} username={username} role={role} close={() => setMobileNav(false)} /></div></div>}
+    {mobileNav && <div className="fixed inset-0 z-[90] bg-black/35" onClick={() => setMobileNav(false)}><div role="dialog" aria-modal="true" aria-label="移动导航" className="h-full w-[240px]" onClick={(event) => event.stopPropagation()}><Sidebar reminderCount={reminderCount} username={username} role={role} close={() => setMobileNav(false)} /></div></div>}
     <div className="app-content min-w-0 flex-1 pl-[var(--sidebar-width)]"><main id="main-content" className="app-main min-h-dvh px-3 pb-8 md:px-5 xl:px-6">{children}</main></div>
+    <MobileBottomNav reminderCount={reminderCount} openMore={() => setMobileNav(true)} />
   </div>;
 }

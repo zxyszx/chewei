@@ -1,10 +1,12 @@
-import { format } from "date-fns";
-import { Search, X } from "lucide-react";
+import { addMonths, format, startOfMonth, subMonths } from "date-fns";
+import { CreditCard, Plus, ReceiptText, Search, TrendingUp, WalletCards, X } from "lucide-react";
 import Link from "next/link";
 import type { Prisma } from "@/generated/prisma/client";
+import { CsvExport } from "@/components/csv-export";
 import { Pagination } from "@/components/pagination";
 import { PlatformIcon } from "@/components/platform-icon";
-import { Badge, PageHeader } from "@/components/ui";
+import { Badge, MetricCard, PageHeader } from "@/components/ui";
+import { databaseToday } from "@/lib/dates";
 import {
   currentPaymentMethods,
   isPaymentMethod,
@@ -13,6 +15,7 @@ import {
 import { prisma } from "@/lib/prisma";
 
 export const metadata = { title: "续费记录" };
+const paymentTone = (method: string): "success" | "blue" | "warning" | "neutral" => method === "WECHAT" ? "success" : method === "ALIPAY" ? "blue" : method === "CRYPTO" ? "warning" : "neutral";
 const localDate = (value: string, end = false) =>
   new Date(`${value}T${end ? "23:59:59.999" : "00:00:00"}+08:00`);
 
@@ -49,7 +52,11 @@ export default async function RenewalsPage({
     ...(validMethod ? { paymentMethod: validMethod } : {}),
     ...(from || to ? { createdAt: { ...(from ? { gte: localDate(from) } : {}), ...(to ? { lte: localDate(to, true) } : {}) } } : {}),
   };
-  const [platforms, slots, renewals, total] = await Promise.all([
+  const today = databaseToday();
+  const thisMonth = startOfMonth(today);
+  const nextMonth = addMonths(thisMonth, 1);
+  const previousMonth = subMonths(thisMonth, 1);
+  const [platforms, slots, renewals, exportRenewals, total, currentAggregate, currentCount, previousAggregate] = await Promise.all([
     prisma.platform.findMany({ orderBy: { name: "asc" } }),
     prisma.parkingSlot.findMany({
       include: { platform: true },
@@ -64,15 +71,21 @@ export default async function RenewalsPage({
       },
       orderBy: { createdAt: "desc" }, skip: (page - 1) * pageSize, take: pageSize,
     }),
+    prisma.renewal.findMany({ where, include: { member: true, slot: { include: { platform: true } }, operator: true }, orderBy: { createdAt: "desc" }, take: 5000 }),
     prisma.renewal.count({ where }),
+    prisma.renewal.aggregate({ where: { createdAt: { gte: thisMonth, lt: nextMonth } }, _sum: { amount: true } }),
+    prisma.renewal.count({ where: { createdAt: { gte: thisMonth, lt: nextMonth } } }),
+    prisma.renewal.aggregate({ where: { createdAt: { gte: previousMonth, lt: thisMonth } }, _sum: { amount: true } }),
   ]);
   const filtered = Boolean(q || platform || slot || method || from || to);
+  const currentRevenue = Number(currentAggregate._sum.amount || 0);
+  const previousRevenue = Number(previousAggregate._sum.amount || 0);
+  const average = currentCount ? currentRevenue / currentCount : 0;
+  const change = previousRevenue > 0 ? ((currentRevenue - previousRevenue) / previousRevenue) * 100 : null;
   return (
     <div className="mx-auto max-w-[1800px] space-y-4">
-      <PageHeader
-        title="续费记录"
-        description="每次续费独立留档，不覆盖历史"
-      />
+      <PageHeader title="续费记录" description="记录每笔续费，收入清晰可追溯" actions={<div className="flex gap-2"><CsvExport filename={`续费记录-${format(today, "yyyyMMdd")}.csv`} rows={exportRenewals.map((record) => ({ date: format(record.createdAt, "yyyy-MM-dd HH:mm"), member: record.member.nickname, contact: record.member.contact, platform: record.slot.platform.name, account: record.slot.accountEmail, oldExpiry: format(record.oldExpireDate, "yyyy-MM-dd"), newExpiry: format(record.newExpireDate, "yyyy-MM-dd"), amount: Number(record.amount).toFixed(2), payment: paymentMethodLabels[record.paymentMethod] || record.paymentMethod, operator: record.operator.username, note: record.note || "" }))} labels={{ date: "日期", member: "车友", contact: "联系方式", platform: "平台", account: "合租账号", oldExpiry: "原到期时间", newExpiry: "新到期时间", amount: "金额", payment: "支付方式", operator: "操作人", note: "备注" }} /><Link className="btn btn-primary" href="/members"><Plus size={16} />新增续费</Link></div>} />
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4"><MetricCard label="本月收入" value={`¥ ${currentRevenue.toFixed(2)}`} icon={WalletCards} tone="blue" detail="本月已到账金额" /><MetricCard label="本月续费" value={`${currentCount} 人次`} icon={ReceiptText} tone="green" detail="本月完成续费次数" /><MetricCard label="平均客单价" value={`¥ ${average.toFixed(2)}`} icon={CreditCard} tone="orange" detail="本月平均每笔金额" /><MetricCard label="较上月" value={change === null ? "--" : `${change >= 0 ? "+" : ""}${change.toFixed(1)}%`} icon={TrendingUp} tone={change !== null && change < 0 ? "red" : "blue"} detail={change === null ? "上月暂无收入" : "收入环比变化"} /></section>
       <section className="panel overflow-hidden">
         <form className="toolbar border-b border-[var(--border)] px-4 py-3">
           <div className="flex min-w-[240px] flex-1 items-center gap-2 rounded-[6px] border border-[var(--border-strong)] px-3">
@@ -208,7 +221,7 @@ export default async function RenewalsPage({
                     ¥ {record.amount.toFixed(2)}
                   </td>
                   <td>
-                    <Badge tone="neutral">
+                    <Badge tone={paymentTone(record.paymentMethod)}>
                       {paymentMethodLabels[record.paymentMethod] || record.paymentMethod}
                     </Badge>
                   </td>
@@ -222,7 +235,7 @@ export default async function RenewalsPage({
           </table>
           {!renewals.length && <div className="empty">暂无续费记录</div>}
         </div>
-        <div className="mobile-record-list">{renewals.map((record) => <article className="mobile-record" key={record.id}><div className="flex items-start justify-between gap-3"><div><strong>{record.member.nickname}</strong><div className="mt-1 flex items-center gap-2 text-[12px] text-[var(--muted-foreground)]"><PlatformIcon slug={record.slot.platform.slug} name={record.slot.platform.name} icon={record.slot.platform.icon} size={15} />{record.slot.platform.name} #{record.slot.slotNumber}</div></div><strong className="whitespace-nowrap text-[15px] tabular">¥ {record.amount.toFixed(2)}</strong></div><dl className="mt-3 grid grid-cols-[76px_minmax(0,1fr)] gap-y-2 text-[12px]"><dt className="mobile-record-label">续费时间</dt><dd className="tabular">{format(record.createdAt, "yyyy.MM.dd HH:mm")}</dd><dt className="mobile-record-label">有效期</dt><dd className="tabular">{format(record.oldExpireDate, "yyyy.MM.dd")} → {format(record.newExpireDate, "yyyy.MM.dd")}</dd><dt className="mobile-record-label">支付方式</dt><dd><Badge tone="neutral">{paymentMethodLabels[record.paymentMethod] || record.paymentMethod}</Badge></dd><dt className="mobile-record-label">操作人</dt><dd>{record.operator.username}</dd>{record.note && <><dt className="mobile-record-label">备注</dt><dd>{record.note}</dd></>}</dl><Link className="btn mt-3 min-h-9 w-full text-[12px]" href={`/slots?open=${record.slotId}`}>查看合租车位</Link></article>)}{!renewals.length && <div className="empty">暂无续费记录</div>}</div>
+        <div className="mobile-record-list">{renewals.map((record) => <article className="mobile-record" key={record.id}><div className="flex items-start justify-between gap-3"><div><strong>{record.member.nickname}</strong><div className="mt-1 flex items-center gap-2 text-[12px] text-[var(--muted-foreground)]"><PlatformIcon slug={record.slot.platform.slug} name={record.slot.platform.name} icon={record.slot.platform.icon} size={15} />{record.slot.platform.name} #{record.slot.slotNumber}</div></div><strong className="whitespace-nowrap text-[15px] text-[var(--primary)] tabular">¥ {record.amount.toFixed(2)}</strong></div><dl className="mt-3 grid grid-cols-[76px_minmax(0,1fr)] gap-y-2 text-[12px]"><dt className="mobile-record-label">续费时间</dt><dd className="tabular">{format(record.createdAt, "yyyy.MM.dd HH:mm")}</dd><dt className="mobile-record-label">有效期</dt><dd className="tabular">{format(record.oldExpireDate, "yyyy.MM.dd")} → {format(record.newExpireDate, "yyyy.MM.dd")}</dd><dt className="mobile-record-label">支付方式</dt><dd><Badge tone={paymentTone(record.paymentMethod)}>{paymentMethodLabels[record.paymentMethod] || record.paymentMethod}</Badge></dd><dt className="mobile-record-label">操作人</dt><dd>{record.operator.username}</dd>{record.note && <><dt className="mobile-record-label">备注</dt><dd>{record.note}</dd></>}</dl><Link className="btn mt-3 min-h-9 w-full text-[12px]" href={`/slots?open=${record.slotId}`}>查看合租车位</Link></article>)}{!renewals.length && <div className="empty">暂无续费记录</div>}</div>
         <Pagination page={page} total={total} pageSize={pageSize} pathname="/renewals" params={{ q, platform, slot, payment: method, from, to }} />
       </section>
     </div>

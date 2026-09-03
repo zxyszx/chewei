@@ -1,4 +1,4 @@
-import { BellRing, LayoutGrid, RefreshCw, Users } from "lucide-react";
+import { BellRing, Database, LayoutGrid, RefreshCw, Users } from "lucide-react";
 import Link from "next/link";
 import { PlatformSettings, ReminderSettings, SystemMaintenance, UserSettings } from "@/components/settings-panels";
 import { PageHeader } from "@/components/ui";
@@ -9,17 +9,18 @@ import { prisma } from "@/lib/prisma";
 export const metadata = { title: "系统设置" };
 
 const tabs = [
-  { id: "maintenance", label: "更新与备份", icon: RefreshCw },
-  { id: "reminders", label: "到期提醒", icon: BellRing },
+  { id: "reminders", label: "提醒设置", icon: BellRing },
   { id: "platforms", label: "平台管理", icon: LayoutGrid },
-  { id: "users", label: "账号权限", icon: Users },
+  { id: "users", label: "管理员", icon: Users },
+  { id: "backup", label: "数据备份", icon: Database },
+  { id: "update", label: "系统更新", icon: RefreshCw },
 ] as const;
 
 type SettingsTab = (typeof tabs)[number]["id"];
 
 function selectedTab(value: string | string[] | undefined): SettingsTab {
   const candidate = Array.isArray(value) ? value[0] : value;
-  return tabs.some((tab) => tab.id === candidate) ? candidate as SettingsTab : "maintenance";
+  return tabs.some((tab) => tab.id === candidate) ? candidate as SettingsTab : "reminders";
 }
 
 export default async function SettingsPage({ searchParams }: PageProps<"/settings">) {
@@ -37,11 +38,13 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
   } else if (activeTab === "users") {
     const users = await prisma.user.findMany({ select: { id: true, username: true, role: true, status: true }, orderBy: { createdAt: "asc" } });
     content = <UserSettings users={users.map((item) => ({ id: item.id, username: item.username, role: item.role, status: item.status }))} currentUserId={user.id} editable={admin} />;
+  } else if (activeTab === "backup") {
+    content = <SystemMaintenance editable={admin} view="backup" />;
   } else {
-    content = <SystemMaintenance editable={admin} />;
+    content = <SystemMaintenance editable={admin} view="update" />;
   }
 
-  return <div className="mx-auto max-w-[1200px] space-y-4"><PageHeader title="系统设置" description={admin ? "更新、备份与基础配置" : "当前账号仅可查看设置"} />
+  return <div className="mx-auto max-w-[1500px] space-y-4"><PageHeader title="系统设置" description={admin ? "管理提醒、平台、管理员与数据维护" : "当前账号仅可查看设置"} />
     <nav className="panel flex min-h-[52px] overflow-x-auto p-1" aria-label="设置分类">
       {tabs.map((tab) => {
         const Icon = tab.icon;

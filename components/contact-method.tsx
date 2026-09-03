@@ -1,4 +1,7 @@
-import { MessageCircle, Send } from "lucide-react";
+"use client";
+
+import { Copy, MessageCircle, Send } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 export type ContactType = "WECHAT" | "TELEGRAM" | "N";
@@ -31,9 +34,10 @@ export function ContactIcon({ type, size = 15 }: { type?: string | null; size?: 
   return <MessageCircle size={size} aria-hidden="true" />;
 }
 
-export function ContactValue({ type, value, className }: { type?: string | null; value: string; className?: string }) {
+export function ContactValue({ type, value, className, copyable = !className }: { type?: string | null; value: string; className?: string; copyable?: boolean }) {
   const normalized = normalizeContactType(type, value);
   const displayValue = cleanContactValue(value, normalized);
   const label = contactTypeOptions.find((option) => option.value === normalized)?.label || "联系方式";
-  return <span className={cn("inline-flex min-w-0 items-center gap-1.5", normalized === "WECHAT" ? "text-[#07855b]" : normalized === "TELEGRAM" ? "text-[#168bd2]" : "text-[var(--foreground)]", className)} title={`${label}: ${displayValue}`}><ContactIcon type={normalized} /><span className="min-w-0 truncate text-[var(--foreground)]">{displayValue}</span></span>;
+  const copy = async () => { await navigator.clipboard.writeText(displayValue); toast.success("联系方式已复制"); };
+  return <span className={cn("inline-flex min-w-0 items-center gap-1.5", normalized === "WECHAT" ? "text-[#07855b]" : normalized === "TELEGRAM" ? "text-[#168bd2]" : "text-[var(--foreground)]", className)} title={`${label}: ${displayValue}`}><ContactIcon type={normalized} /><span className="min-w-0 truncate text-[var(--foreground)]">{displayValue}</span>{copyable && <button type="button" className="contact-copy grid size-7 shrink-0 place-items-center rounded-[6px] text-[var(--muted-foreground)] hover:bg-[var(--surface-subtle)] hover:text-[var(--foreground)]" onClick={copy} aria-label={`复制${label}`} title={`复制${label}`}><Copy size={13} /></button>}</span>;
 }

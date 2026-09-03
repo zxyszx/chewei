@@ -1,132 +1,17 @@
 "use client";
 
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { ProgressBar } from "@/components/ui";
 
-export function AnalyticsCharts({
-  platformData,
-  renewalData,
-}: {
-  platformData: { name: string; slots: number; members: number }[];
-  renewalData: { month: string; amount: number; count: number }[];
-}) {
-  return (
-    <div className="grid gap-4 xl:grid-cols-2">
-      <section className="panel p-4">
-        <div className="mb-4">
-          <h2 className="font-semibold">各平台规模</h2>
-          <p className="mt-1 text-[11px] text-[var(--muted-foreground)]">
-            合租车位与在位车友数量
-          </p>
-        </div>
-        <div
-          className="h-[300px]"
-          role="img"
-          aria-label="各平台合租车位和车友数量柱状图"
-        >
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={platformData}
-              margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
-            >
-              <CartesianGrid stroke="#edf0f3" vertical={false} />
-              <XAxis
-                dataKey="name"
-                tick={{ fontSize: 11, fill: "#657080" }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                allowDecimals={false}
-                tick={{ fontSize: 11, fill: "#657080" }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <Tooltip
-                cursor={{ fill: "#f6f8fa" }}
-                contentStyle={{
-                  border: "1px solid #e3e7ed",
-                  borderRadius: 6,
-                  fontSize: 12,
-                }}
-              />
-              <Bar
-                dataKey="slots"
-                name="合租车位"
-                fill="#3b82f6"
-                radius={[3, 3, 0, 0]}
-              />
-              <Bar
-                dataKey="members"
-                name="车友"
-                fill="#16a377"
-                radius={[3, 3, 0, 0]}
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </section>
-      <section className="panel p-4">
-        <div className="mb-4">
-          <h2 className="font-semibold">近 6 个月续费</h2>
-          <p className="mt-1 text-[11px] text-[var(--muted-foreground)]">
-            续费金额趋势
-          </p>
-        </div>
-        <div
-          className="h-[300px]"
-          role="img"
-          aria-label="近六个月续费金额折线图"
-        >
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart
-              data={renewalData}
-              margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
-            >
-              <CartesianGrid stroke="#edf0f3" vertical={false} />
-              <XAxis
-                dataKey="month"
-                tick={{ fontSize: 11, fill: "#657080" }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                tick={{ fontSize: 11, fill: "#657080" }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <Tooltip
-                contentStyle={{
-                  border: "1px solid #e3e7ed",
-                  borderRadius: 6,
-                  fontSize: 12,
-                }}
-                formatter={(value) => [
-                  `¥ ${Number(value).toFixed(2)}`,
-                  "续费金额",
-                ]}
-              />
-              <Line
-                type="monotone"
-                dataKey="amount"
-                stroke="#2563eb"
-                strokeWidth={2}
-                dot={{ r: 3, fill: "#fff", strokeWidth: 2 }}
-                activeDot={{ r: 5 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      </section>
-    </div>
-  );
+const axis = { fontSize: 11, fill: "var(--muted-foreground)" };
+const tooltipStyle = { background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--foreground)", fontSize: 12 };
+
+export function AnalyticsCharts({ platformData, renewalData, seatData, expiryData }: { platformData: { name: string; used: number; capacity: number; percent: number }[]; renewalData: { month: string; amount: number }[]; seatData: { name: string; value: number; color: string }[]; expiryData: { range: string; count: number }[] }) {
+  const totalSeats = seatData.reduce((sum, item) => sum + item.value, 0);
+  return <div className="grid gap-4 xl:grid-cols-2">
+    <section className="panel p-5"><div className="mb-5"><h2 className="section-heading">各平台席位利用率</h2><p className="mt-1 text-[12px] text-[var(--muted-foreground)]">按有效账号容量独立比较</p></div><div className="space-y-5">{platformData.map((item) => <div key={item.name}><div className="mb-2 flex items-center justify-between gap-3 text-[13px]"><strong>{item.name}</strong><span className="tabular text-[var(--muted-foreground)]">{item.used} / {item.capacity} · {item.percent}%</span></div><ProgressBar value={item.percent} label={`${item.name} 席位利用率 ${item.percent}%`} /></div>)}{!platformData.length && <div className="empty">暂无平台数据</div>}</div></section>
+    <section className="panel p-5"><div className="mb-4"><h2 className="section-heading">近 6 个月续费收入</h2><p className="mt-1 text-[12px] text-[var(--muted-foreground)]">按续费记录实际金额汇总</p></div><div className="h-[300px]" role="img" aria-label="近六个月续费收入折线图"><ResponsiveContainer width="100%" height="100%"><LineChart data={renewalData} margin={{ top: 12, right: 12, left: -8, bottom: 0 }}><CartesianGrid stroke="var(--chart-grid)" vertical={false} /><XAxis dataKey="month" tick={axis} axisLine={false} tickLine={false} /><YAxis tick={axis} axisLine={false} tickLine={false} /><Tooltip contentStyle={tooltipStyle} formatter={(value) => [`¥ ${Number(value).toFixed(2)}`, "续费收入"]} /><Line type="monotone" dataKey="amount" stroke="var(--chart-1)" strokeWidth={3} dot={{ r: 3, fill: "var(--surface)", strokeWidth: 2 }} activeDot={{ r: 5 }} /></LineChart></ResponsiveContainer></div></section>
+    <section className="panel p-5"><div className="mb-4"><h2 className="section-heading">席位状态分布</h2><p className="mt-1 text-[12px] text-[var(--muted-foreground)]">有效账号的已占用与剩余席位</p></div><div className="grid min-h-[280px] items-center gap-4 sm:grid-cols-[minmax(220px,1fr)_180px]"><div className="relative h-[240px]" role="img" aria-label="席位状态分布环形图"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={seatData} dataKey="value" nameKey="name" innerRadius="58%" outerRadius="82%" paddingAngle={2}>{seatData.map((item) => <Cell key={item.name} fill={item.color} />)}</Pie><Tooltip contentStyle={tooltipStyle} /></PieChart></ResponsiveContainer><div className="pointer-events-none absolute inset-0 grid place-content-center text-center"><strong className="text-[26px] tabular">{totalSeats}</strong><span className="text-[11px] text-[var(--muted-foreground)]">总席位</span></div></div><div className="space-y-4">{seatData.map((item) => <div className="flex items-center justify-between gap-3" key={item.name}><span className="flex items-center gap-2 text-[13px]"><i className="size-2.5 rounded-full" style={{ background: item.color }} />{item.name}</span><strong className="tabular">{item.value}</strong></div>)}</div></div></section>
+    <section className="panel p-5"><div className="mb-4"><h2 className="section-heading">到期趋势</h2><p className="mt-1 text-[12px] text-[var(--muted-foreground)]">未来 30 天按时间段分布</p></div><div className="h-[280px]" role="img" aria-label="到期趋势柱状图"><ResponsiveContainer width="100%" height="100%"><BarChart data={expiryData} margin={{ top: 12, right: 12, left: -18, bottom: 0 }}><CartesianGrid stroke="var(--chart-grid)" vertical={false} /><XAxis dataKey="range" tick={axis} axisLine={false} tickLine={false} /><YAxis allowDecimals={false} tick={axis} axisLine={false} tickLine={false} /><Tooltip cursor={{ fill: "var(--surface-subtle)" }} contentStyle={tooltipStyle} /><Bar dataKey="count" name="到期车友" fill="var(--chart-2)" radius={[5, 5, 0, 0]} maxBarSize={56} /></BarChart></ResponsiveContainer></div></section>
+  </div>;
 }

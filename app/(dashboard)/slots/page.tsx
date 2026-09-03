@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 
 export const metadata = { title: "合租车位" };
 
-export default async function SlotsPage({ searchParams }: { searchParams: Promise<{ platform?: string; open?: string; create?: string }> }) {
+export default async function SlotsPage({ searchParams }: { searchParams: Promise<{ platform?: string; open?: string; create?: string; status?: string }> }) {
   const params = await searchParams;
   const user = await requireUser();
   const [platforms, rows] = await Promise.all([
@@ -39,10 +39,12 @@ export default async function SlotsPage({ searchParams }: { searchParams: Promis
     renewals: [],
     renewalCount: _count.renewals,
   }));
-  const closeHref = params.platform ? `/slots?platform=${encodeURIComponent(params.platform)}` : "/slots";
+  const closeQuery = new URLSearchParams(); if (params.platform) closeQuery.set("platform", params.platform); if (params.status) closeQuery.set("status", params.status);
+  const closeHref = closeQuery.size ? `/slots?${closeQuery}` : "/slots";
   const createHref = `${closeHref}${closeHref.includes("?") ? "&" : "?"}create=1`;
-  const activeMembers = slots.reduce((sum, slot) => sum + slot.members.filter((member) => member.status === "ACTIVE").length, 0);
-  const totalCapacity = slots.reduce((sum, slot) => sum + slot.capacity, 0);
+  const activeSlots = slots.filter((slot) => slot.status === "ACTIVE");
+  const activeMembers = activeSlots.reduce((sum, slot) => sum + slot.members.filter((member) => member.status === "ACTIVE").length, 0);
+  const totalCapacity = activeSlots.reduce((sum, slot) => sum + slot.capacity, 0);
   const currentPlatform = params.platform ? platforms.find((platform) => platform.slug === params.platform) : undefined;
   return <div className="slot-page mx-auto max-w-[1800px]">
     <header className="slot-page-header">
@@ -53,10 +55,10 @@ export default async function SlotsPage({ searchParams }: { searchParams: Promis
       <Link href={createHref} scroll={false} className="btn btn-primary"><Plus size={16} />新增车位</Link>
     </header>
     <nav className="platform-tabs" aria-label="合租车位工作表">
-      <Link href="/settings#platforms" className="platform-tab-add" aria-label="管理平台" title="管理平台"><Plus size={16} /></Link>
+      <Link href="/settings?tab=platforms" className="platform-tab-add" aria-label="管理平台" title="管理平台"><Plus size={16} /></Link>
       <Link href="/slots" scroll={false} aria-current={!params.platform ? "page" : undefined} className={!params.platform ? "platform-tab platform-tab-active" : "platform-tab"}>全部车位<span>{platforms.reduce((sum, item) => sum + item._count.parkingSlots, 0)}</span></Link>
       {platforms.map((platform) => <Link key={platform.id} href={`/slots?platform=${encodeURIComponent(platform.slug)}`} scroll={false} aria-current={params.platform === platform.slug ? "page" : undefined} className={params.platform === platform.slug ? "platform-tab platform-tab-active" : "platform-tab"}><PlatformIcon slug={platform.slug} name={platform.name} icon={platform.icon} size={16} />{platform.name}<span>{platform._count.parkingSlots}</span></Link>)}
     </nav>
-    <SlotManager key={`${params.platform || "all"}:${params.open || "closed"}:${params.create || "idle"}`} slots={slots} platforms={platforms.map((p) => ({ id: p.id, name: p.name, slug: p.slug, icon: p.icon, defaultCapacity: p.defaultCapacity }))} initialOpen={params.open} initialCreate={params.create === "1"} closeHref={closeHref} singlePlatform={Boolean(params.platform)} platformSlug={params.platform} canDelete={user.role === "ADMIN"} />
+    <SlotManager key={`${params.platform || "all"}:${params.status || "all"}:${params.open || "closed"}:${params.create || "idle"}`} slots={slots} platforms={platforms.map((p) => ({ id: p.id, name: p.name, slug: p.slug, icon: p.icon, defaultCapacity: p.defaultCapacity }))} initialOpen={params.open} initialCreate={params.create === "1"} initialStatus={params.status} closeHref={closeHref} singlePlatform={Boolean(params.platform)} platformSlug={params.platform} canDelete={user.role === "ADMIN"} />
   </div>;
 }
