@@ -1,4 +1,5 @@
 import {
+  siBilibili, siDazn, siGithub, siMubi, siNeteasecloudmusic,
   siApplemusic, siAppletv, siClaude, siCrunchyroll, siDeezer, siDropbox,
   siEmby, siGoogledrive, siGooglegemini, siHbo, siHbomax, siJellyfin,
   siNetflix, siNotion, siParamountplus, siPerplexity, siPlaystation, siPlex,
@@ -30,6 +31,11 @@ const brandIcons: Record<string, SimpleIcon> = {
   steam: siSteam,
   "youtube-premium": siYoutube,
   "youtube-music": siYoutubemusic,
+  bilibili: siBilibili,
+  dazn: siDazn,
+  mubi: siMubi,
+  "netease-cloud-music": siNeteasecloudmusic,
+  "github-copilot": siGithub,
 };
 
 const fallbackColors: Record<string, string> = {
@@ -38,6 +44,16 @@ const fallbackColors: Record<string, string> = {
   "prime-video": "#00a8e1",
   viki: "#5b4cff",
   chatgpt: "#10a37f",
+  "tencent-video": "#ff5c38",
+  youku: "#00a8ff",
+  "mango-tv": "#ff6b00",
+  hulu: "#1ce783",
+  "qq-music": "#31c27c",
+  midjourney: "#111827",
+  "microsoft-365": "#d83b01",
+  canva: "#00c4cc",
+  "xbox-game-pass": "#107c10",
+  "nintendo-switch-online": "#e60012",
 };
 
 const wordmarks: Record<string, string> = {
@@ -46,6 +62,16 @@ const wordmarks: Record<string, string> = {
   "prime-video": "prime",
   viki: "Viki",
   chatgpt: "GPT",
+  "tencent-video": "腾讯",
+  youku: "优酷",
+  "mango-tv": "芒果",
+  hulu: "hulu",
+  "qq-music": "QQ",
+  midjourney: "MJ",
+  "microsoft-365": "365",
+  canva: "Canva",
+  "xbox-game-pass": "XGP",
+  "nintendo-switch-online": "NSO",
 };
 
 export function PlatformIcon({ slug, name, icon: customIcon, size = 18, className }: { slug: string; name: string; icon?: string | null; size?: number; className?: string }) {
