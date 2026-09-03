@@ -1,7 +1,7 @@
 import { Plus } from "lucide-react";
 import Link from "next/link";
+import { PlatformTabs } from "@/components/platform-tabs";
 import { SlotManager, type SlotItem } from "@/components/slot-manager";
-import { PlatformIcon } from "@/components/platform-icon";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -48,17 +48,11 @@ export default async function SlotsPage({ searchParams }: { searchParams: Promis
   const currentPlatform = params.platform ? platforms.find((platform) => platform.slug === params.platform) : undefined;
   return <div className="slot-page mx-auto max-w-[1800px]">
     <header className="slot-page-header">
-      <div className="min-w-0">
-        <h1 className="page-title">{currentPlatform?.name || "合租车位"}</h1>
-        <p className="page-description tabular">{slots.length} 个账号 · {activeMembers}/{totalCapacity} 个席位在用 · {Math.max(0, totalCapacity - activeMembers)} 个空位</p>
-      </div>
+      <h1 className="sr-only">{currentPlatform?.name || "合租车位"}</h1>
+      <p className="slot-summary tabular">{slots.length} 个账号 · {activeMembers}/{totalCapacity} 个席位在用 · {Math.max(0, totalCapacity - activeMembers)} 个空位</p>
       <Link href={createHref} scroll={false} className="btn btn-primary"><Plus size={16} />新增车位</Link>
     </header>
-    <nav className="platform-tabs" aria-label="合租车位工作表">
-      <Link href="/settings?tab=platforms" className="platform-tab-add" aria-label="管理平台" title="管理平台"><Plus size={16} /></Link>
-      <Link href="/slots" scroll={false} aria-current={!params.platform ? "page" : undefined} className={!params.platform ? "platform-tab platform-tab-active" : "platform-tab"}>全部车位<span>{platforms.reduce((sum, item) => sum + item._count.parkingSlots, 0)}</span></Link>
-      {platforms.map((platform) => <Link key={platform.id} href={`/slots?platform=${encodeURIComponent(platform.slug)}`} scroll={false} aria-current={params.platform === platform.slug ? "page" : undefined} className={params.platform === platform.slug ? "platform-tab platform-tab-active" : "platform-tab"}><PlatformIcon slug={platform.slug} name={platform.name} icon={platform.icon} size={16} />{platform.name}<span>{platform._count.parkingSlots}</span></Link>)}
-    </nav>
+    <PlatformTabs current={params.platform} platforms={platforms.map((platform) => ({ id: platform.id, name: platform.name, slug: platform.slug, icon: platform.icon, count: platform._count.parkingSlots }))} />
     <SlotManager key={`${params.platform || "all"}:${params.status || "all"}:${params.open || "closed"}:${params.create || "idle"}`} slots={slots} platforms={platforms.map((p) => ({ id: p.id, name: p.name, slug: p.slug, icon: p.icon, defaultCapacity: p.defaultCapacity }))} initialOpen={params.open} initialCreate={params.create === "1"} initialStatus={params.status} closeHref={closeHref} singlePlatform={Boolean(params.platform)} platformSlug={params.platform} canDelete={user.role === "ADMIN"} />
   </div>;
 }

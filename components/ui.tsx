@@ -15,7 +15,7 @@ export function SubmitButton({ children, className, ...props }: ButtonHTMLAttrib
 }
 
 export function PageHeader({ title, description, leading, actions }: { title: string; description?: string; leading?: ReactNode; actions?: ReactNode }) {
-  return <header className="page-header flex flex-wrap items-start justify-between gap-4"><div className="flex min-w-0 items-start gap-3">{leading}<div className="min-w-0"><h1 className="page-title">{title}</h1>{description && <p className="page-description">{description}</p>}</div></div>{actions}</header>;
+  return <header className={cn("page-header", actions && "page-header-actions")}><h1 className="sr-only">{title}</h1>{description && <p className="sr-only">{description}</p>}{leading}<div className="page-header-actions-slot">{actions}</div></header>;
 }
 
 export function MetricCard({ label, value, detail, icon, tone = "blue", className }: { label: string; value: ReactNode; detail?: ReactNode; icon: ReactNode; tone?: "blue" | "green" | "orange" | "red"; className?: string }) {
@@ -24,5 +24,5 @@ export function MetricCard({ label, value, detail, icon, tone = "blue", classNam
 
 export function ProgressBar({ value, label, tone = "blue" }: { value: number; label: string; tone?: "blue" | "green" | "orange" | "red" }) {
   const safe = Math.max(0, Math.min(100, value));
-  return <div className="progress-track" role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(safe)}><span className={`progress-fill progress-${tone}`} style={{ width: `${safe}%` }} /></div>;
+  return <div className="progress-track" role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(safe)}><span className={`progress-fill progress-${tone}`} style={{ width: `${safe}%`, minWidth: safe > 0 ? 2 : 0 }} /></div>;
 }

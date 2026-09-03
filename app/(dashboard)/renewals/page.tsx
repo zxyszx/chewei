@@ -88,13 +88,12 @@ export default async function RenewalsPage({
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4"><MetricCard label="本月收入" value={`¥ ${currentRevenue.toFixed(2)}`} icon={<WalletCards size={22} />} tone="blue" detail="本月已到账金额" /><MetricCard label="本月续费" value={`${currentCount} 人次`} icon={<ReceiptText size={22} />} tone="green" detail="本月完成续费次数" /><MetricCard label="平均客单价" value={`¥ ${average.toFixed(2)}`} icon={<CreditCard size={22} />} tone="orange" detail="本月平均每笔金额" /><MetricCard label="较上月" value={change === null ? "--" : `${change >= 0 ? "+" : ""}${change.toFixed(1)}%`} icon={<TrendingUp size={22} />} tone={change !== null && change < 0 ? "red" : "blue"} detail={change === null ? "上月暂无收入" : "收入环比变化"} /></section>
       <section className="panel overflow-hidden">
         <form className="toolbar border-b border-[var(--border)] px-4 py-3">
-          <div className="flex min-w-[240px] flex-1 items-center gap-2 rounded-[6px] border border-[var(--border-strong)] px-3">
-            <Search size={15} className="text-[#7b8493]" />
+          <div className="toolbar-search-field min-w-[240px] flex-1">
+            <Search size={16} />
             <input
               aria-label="搜索车友或联系方式"
               name="q"
               defaultValue={q}
-              className="h-9 min-w-0 flex-1 outline-none"
               placeholder="搜索车友或联系方式"
             />
           </div>

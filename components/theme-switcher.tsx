@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Laptop, Moon, Sun } from "lucide-react";
+import { Moon, Sun } from "lucide-react";
 import { useEffect, useSyncExternalStore } from "react";
 import { cn } from "@/lib/utils";
 
@@ -8,12 +8,6 @@ export type ThemePreference = "light" | "dark" | "system";
 
 const storageKey = "chewei-theme-v2";
 const changeEvent = "chewei-theme-change";
-const options = [
-  { value: "light" as const, label: "浅色", icon: Sun },
-  { value: "dark" as const, label: "深色", icon: Moon },
-  { value: "system" as const, label: "跟随系统", icon: Laptop },
-];
-
 function applyTheme(preference: ThemePreference) {
   const resolved = preference === "system"
     ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
@@ -24,7 +18,7 @@ function applyTheme(preference: ThemePreference) {
 
 function storedTheme(): ThemePreference {
   const saved = window.localStorage.getItem(storageKey);
-  return saved === "light" || saved === "dark" || saved === "system" ? saved : "light";
+  return saved === "dark" ? "dark" : "light";
 }
 
 export function useThemePreference() {
@@ -68,9 +62,9 @@ export function ThemeToggle({ className }: { className?: string }) {
 
 export function ThemePicker() {
   const { preference, update } = useThemePreference();
-  return <div className="space-y-1" role="radiogroup" aria-label="界面主题">
-    {options.map(({ value, label, icon: Icon }) => <button key={value} type="button" role="radio" aria-checked={preference === value} onClick={() => update(value)} className={cn("menu-item w-full", preference === value && "menu-item-active")}>
-      <Icon size={15} /><span className="flex-1 text-left">{label}</span>{preference === value && <Check size={14} />}
-    </button>)}
+  const selected = preference === "dark" ? "dark" : "light";
+  return <div className="theme-picker-icons" role="radiogroup" aria-label="界面主题">
+    <button type="button" role="radio" aria-checked={selected === "light"} onClick={() => update("light")} className={cn("theme-picker-button", selected === "light" && "theme-picker-button-active")} aria-label="浅色模式" title="浅色模式"><Sun size={17} /></button>
+    <button type="button" role="radio" aria-checked={selected === "dark"} onClick={() => update("dark")} className={cn("theme-picker-button", selected === "dark" && "theme-picker-button-active")} aria-label="深色模式" title="深色模式"><Moon size={17} /></button>
   </div>;
 }
