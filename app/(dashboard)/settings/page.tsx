@@ -9,11 +9,11 @@ import { prisma } from "@/lib/prisma";
 export const metadata = { title: "系统设置" };
 
 const tabs = [
-  { id: "reminders", label: "提醒设置", icon: BellRing },
-  { id: "platforms", label: "平台管理", icon: LayoutGrid },
-  { id: "users", label: "管理员", icon: Users },
-  { id: "backup", label: "数据备份", icon: Database },
-  { id: "update", label: "系统更新", icon: RefreshCw },
+  { id: "reminders", label: "提醒设置", description: "到期时间与提醒规则", icon: BellRing },
+  { id: "platforms", label: "平台管理", description: "平台、图标与默认席位", icon: LayoutGrid },
+  { id: "users", label: "管理员", description: "账号、权限与密码", icon: Users },
+  { id: "backup", label: "数据备份", description: "下载备份与整站恢复", icon: Database },
+  { id: "update", label: "系统更新", description: "检查并安装仓库更新", icon: RefreshCw },
 ] as const;
 
 type SettingsTab = (typeof tabs)[number]["id"];
@@ -45,13 +45,17 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
   }
 
   return <div className="mx-auto max-w-[1500px] space-y-4"><PageHeader title="系统设置" description={admin ? "管理提醒、平台、管理员与数据维护" : "当前账号仅可查看设置"} />
-    <nav className="panel flex min-h-[52px] overflow-x-auto p-1" aria-label="设置分类">
-      {tabs.map((tab) => {
-        const Icon = tab.icon;
-        const active = activeTab === tab.id;
-        return <Link key={tab.id} href={`/settings?tab=${tab.id}`} scroll={false} aria-current={active ? "page" : undefined} className={`inline-flex min-h-11 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-[5px] px-4 text-[12px] font-semibold transition-[background,color,box-shadow] duration-150 ${active ? "bg-[var(--surface-subtle)] text-[var(--accent)] shadow-[inset_0_0_0_1px_var(--border)]" : "text-[var(--muted-foreground)] hover:bg-[var(--surface-subtle)] hover:text-[var(--foreground)]"}`}><Icon size={15} aria-hidden="true" />{tab.label}</Link>;
-      })}
-    </nav>
-    {content}
+    <div className="grid items-start gap-4 lg:grid-cols-[250px_minmax(0,1fr)]">
+      <aside className="panel p-2 lg:sticky lg:top-[72px]">
+        <nav className="settings-sidebar" aria-label="设置分类">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const active = activeTab === tab.id;
+            return <Link key={tab.id} href={`/settings?tab=${tab.id}`} scroll={false} aria-current={active ? "page" : undefined} className={`settings-sidebar-link ${active ? "settings-sidebar-link-active" : ""}`}><Icon size={16} aria-hidden="true" /><span><strong>{tab.label}</strong><small>{tab.description}</small></span></Link>;
+          })}
+        </nav>
+      </aside>
+      <div className="min-w-0">{content}</div>
+    </div>
   </div>;
 }

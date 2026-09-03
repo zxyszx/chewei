@@ -177,9 +177,9 @@ input[name="slot-filter-query"]:focus-visible { outline: none; }
 .skeleton { border-radius: 5px; background: linear-gradient(90deg, #f0f0f0 25%, #fafafa 50%, #f0f0f0 75%); background-size: 200% 100%; animation: skeleton-shift 1.4s ease-in-out infinite; }
 .nav-pending { opacity: 0; animation: nav-pending-show 160ms ease-out 100ms forwards; }
 
-.login-page { background: #eceeef; }
+.login-page { background: var(--surface); }
 .login-shell { background: var(--surface); }
-.login-brand-panel { background: #242424; box-shadow: inset 4px 0 0 var(--primary); }
+.login-brand-panel { background: #242424; }
 .workspace-topbar { position: fixed; top: 0; right: 0; left: var(--sidebar-width); z-index: 35; display: flex; height: 56px; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--border); background: var(--surface); padding: 0 22px; transition: left 200ms ease; }
 .workspace-brand { align-items: center; gap: 7px; font-size: 13px; font-weight: 700; }
 .workspace-search-trigger { display: inline-flex; width: 250px; min-height: 34px; align-items: center; gap: 9px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface-subtle); padding: 0 9px; color: var(--muted-foreground); font-size: 12px; text-align: left; transition: border-color 140ms, background 140ms; }
@@ -204,14 +204,15 @@ input[name="slot-filter-query"]:focus-visible { outline: none; }
 .platform-catalog-item-active { border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 0 1px var(--accent); }
 .platform-catalog-item-existing { cursor: default; opacity: .72; }
 .platform-catalog-item-existing:hover { border-color: var(--border); background: var(--surface); }
-.sidebar { color: #f5f5f5; border-color: rgb(255 255 255 / 9%) !important; background: var(--brand-panel); }
+.sidebar { color: var(--foreground); border-color: var(--border) !important; background: var(--surface); }
+.sidebar-brand-mark { border: 1px solid var(--border); background: var(--surface-subtle); color: var(--foreground); }
 .app-main { padding-top: 72px; }
 .sidebar-icon-button {
   display: grid; width: 36px; height: 36px; flex: 0 0 36px; place-items: center; border: 0; border-radius: 7px;
   background: transparent; color: var(--muted-foreground); transition: background 150ms, color 150ms;
 }
-.sidebar-icon-button { color: #bdbdbd; }
-.sidebar-icon-button:hover { background: rgb(255 255 255 / 10%); color: #fff; }
+.sidebar-icon-button { color: var(--muted-foreground); }
+.sidebar-icon-button:hover { background: var(--surface-subtle); color: var(--foreground); }
 .sidebar-toggle-tooltip {
   pointer-events: none; position: absolute; right: 0; top: calc(100% + 7px); z-index: 70;
   width: max-content; max-width: 160px; border-radius: 7px; background: #202020; padding: 6px 9px;
@@ -263,22 +264,26 @@ input[name="slot-filter-query"]:focus-visible { outline: none; }
 .slot-manager-table th:last-child, .slot-manager-table td:last-child { position: sticky; right: 0; z-index: 3; width: 46px; background: var(--surface); box-shadow: -8px 0 12px rgb(17 35 62 / 4%); }
 .slot-manager-table th:last-child { z-index: 4; background: var(--surface-subtle); }
 .slot-manager-table tbody tr:hover td:first-child, .slot-manager-table tbody tr:hover td:last-child { background: var(--surface-subtle); }
-.nav-group-label { margin: 0 0 6px; padding: 0 12px; color: #777; font-size: 10px; font-weight: 700; text-transform: uppercase; }
-.nav-link { display: flex; min-height: 44px; align-items: center; gap: 11px; border-radius: 5px; padding: 0 12px; color: #bdbdbd; font-size: 14px; font-weight: 600; transition: transform 100ms ease, background 150ms, color 150ms, box-shadow 150ms; }
-.nav-link:hover { background: rgb(255 255 255 / 9%); color: #fff; }
+.nav-group-label { margin: 0 0 6px; padding: 0 12px; color: var(--muted-foreground); font-size: 10px; font-weight: 700; text-transform: uppercase; }
+.nav-link { display: flex; min-height: 42px; align-items: center; gap: 11px; border-radius: 5px; padding: 0 12px; color: var(--muted-foreground); font-size: 13px; font-weight: 600; transition: transform 100ms ease, background 150ms, color 150ms, box-shadow 150ms; }
+.nav-link:hover { background: var(--surface-subtle); color: var(--foreground); }
 .nav-link:active { transform: scale(.985); }
-.nav-link-active { color: #fff; background: #333; box-shadow: inset 3px 0 0 var(--primary); }
+.nav-link-active { color: var(--foreground); background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
 .nav-dot { position: absolute; right: -4px; top: -3px; width: 6px; height: 6px; border: 1px solid var(--surface); border-radius: 50%; background: var(--danger); }
 .nav-badge { min-width: 22px; border-radius: 999px; background: #ef4444; padding: 2px 6px; color: #fff; font-size: 10px; text-align: center; font-variant-numeric: tabular-nums; }
 .account-menu summary { list-style: none; }
 .account-menu summary::-webkit-details-marker { display: none; }
 .account-trigger { display: flex; min-height: 38px; align-items: center; gap: 8px; border-radius: 6px; padding: 3px 6px; cursor: pointer; transition: background 150ms; }
-.account-trigger { color: #fff; }
-.account-trigger:hover, .account-menu[open] .account-trigger { background: rgb(255 255 255 / 10%); }
-.account-trigger [class*="muted-foreground"] { color: #9c9c9c !important; }
+.account-trigger { color: var(--foreground); }
+.account-trigger:hover, .account-menu[open] .account-trigger { background: var(--surface-subtle); }
+.account-trigger [class*="muted-foreground"] { color: var(--muted-foreground) !important; }
 .account-avatar { display: grid; width: 30px; height: 30px; flex: 0 0 30px; place-items: center; border-radius: 50%; background: var(--primary); color: var(--primary-foreground); font-size: 12px; font-weight: 700; }
 .account-popover { position: absolute; bottom: calc(100% + 8px); left: 0; }
 .account-menu-compact .account-popover { bottom: 0; left: calc(100% + 8px); }
+.header-account-trigger { display: grid; width: 36px; height: 36px; place-items: center; border-radius: 50%; cursor: pointer; }
+.header-account-trigger:hover, .header-account-menu[open] .header-account-trigger { background: var(--surface-subtle); }
+.header-account-popover { position: absolute; top: calc(100% + 9px); right: 0; }
+.header-notification-dot { position: absolute; right: 7px; top: 6px; width: 7px; height: 7px; border: 2px solid var(--surface); border-radius: 50%; background: var(--danger); }
 .menu-item { display: flex; min-height: 36px; align-items: center; gap: 9px; border-radius: 5px; padding: 0 10px; color: var(--foreground); font-size: 12px; transition: background 140ms; }
 .menu-item:hover, .menu-item-active { background: var(--surface-subtle); }
 .menu-item-danger { color: var(--danger); }
@@ -302,6 +307,14 @@ input[name="slot-filter-query"]:focus-visible { outline: none; }
 .segmented-control button:hover { color: var(--foreground); }
 .segmented-control .segmented-active { background: var(--surface); color: var(--foreground); box-shadow: 0 1px 3px rgb(0 0 0 / 9%); }
 .account-menu .menu-popover .btn { width: 100%; justify-content: flex-start; border: 0; background: transparent; box-shadow: none; }
+.settings-sidebar { display: flex; flex-direction: column; gap: 2px; }
+.settings-sidebar-link { display: flex; min-height: 58px; align-items: flex-start; gap: 10px; border-radius: 6px; padding: 10px 11px; color: var(--foreground); transition: background 140ms, color 140ms; }
+.settings-sidebar-link:hover { background: var(--surface-subtle); }
+.settings-sidebar-link > svg { margin-top: 2px; flex: 0 0 auto; color: var(--muted-foreground); }
+.settings-sidebar-link strong { display: block; font-size: 12px; font-weight: 650; }
+.settings-sidebar-link small { display: block; margin-top: 3px; color: var(--muted-foreground); font-size: 10px; line-height: 1.35; }
+.settings-sidebar-link-active { background: var(--accent-soft); }
+.settings-sidebar-link-active > svg { color: var(--accent); }
 .theme-icon-dark { display: none; }
 [data-theme="dark"] .theme-icon-light { display: none; }
 [data-theme="dark"] .theme-icon-dark { display: block; }

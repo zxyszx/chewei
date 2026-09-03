@@ -10,10 +10,11 @@ export const metadata = { title: "登录" };
 export default async function LoginPage() {
   if (await getCurrentUser()) redirect("/");
   return (
-    <main className="login-page flex min-h-dvh items-stretch lg:items-center lg:p-6">
-      <section className="login-shell mx-auto grid min-h-dvh w-full overflow-hidden lg:min-h-[650px] lg:max-w-[1120px] lg:grid-cols-[0.9fr_1.1fr] lg:rounded-[10px] lg:border lg:border-[var(--border)] lg:shadow-[0_24px_80px_rgb(0_0_0/18%)]">
+    <main className="login-page min-h-dvh">
+      <section className="login-shell flex min-h-dvh w-full overflow-hidden">
+        <div className="relative hidden p-3 lg:flex lg:flex-1">
         <aside
-          className="login-brand-panel relative hidden overflow-hidden px-11 py-11 text-white lg:flex lg:flex-col"
+          className="login-brand-panel relative flex w-full flex-col overflow-hidden rounded-[18px] px-14 py-12 text-white"
           aria-label="Chewei"
         >
           <div className="flex items-center gap-3">
@@ -27,9 +28,9 @@ export default async function LoginPage() {
           </div>
 
           <div className="my-auto py-14">
-            <p className="max-w-[360px] text-[30px] font-semibold leading-[1.35]">每个账号，每个席位，都有记录</p>
-            <p className="mt-4 max-w-[340px] text-[13px] leading-7 text-[#b3b3b3]">集中管理合租账号、成员、续费和到期提醒。</p>
-            <div className="mt-10 grid max-w-[340px] grid-cols-3 border-y border-white/10 py-5">
+            <p className="max-w-[430px] text-[36px] font-semibold leading-[1.3]">每个账号，每个席位，都有记录</p>
+            <p className="mt-5 max-w-[420px] text-[14px] leading-7 text-[#b3b3b3]">集中管理合租账号、成员、续费和到期提醒。</p>
+            <div className="mt-11 grid max-w-[420px] grid-cols-3 border-y border-white/10 py-5">
               {[["账号", "集中"], ["席位", "清晰"], ["续费", "可追溯"]].map(([label, value]) => <div key={label} className="border-r border-white/10 px-3 first:pl-0 last:border-0"><span className="block text-[10px] text-[#888]">{label}</span><strong className="mt-1.5 block text-[13px] font-medium text-[#f1f1f1]">{value}</strong></div>)}
             </div>
           </div>
@@ -39,8 +40,9 @@ export default async function LoginPage() {
             <span className="flex items-center gap-2"><Activity size={14} className="text-[#78b989]" />服务在线</span>
           </div>
         </aside>
+        </div>
 
-        <div className="relative flex min-h-dvh flex-col px-6 py-8 sm:px-12 lg:min-h-0 lg:px-16 lg:py-12">
+        <div className="relative flex min-h-dvh w-full flex-col border-l border-[var(--border)] px-6 py-8 sm:px-12 lg:w-[520px] lg:shrink-0 lg:px-14 lg:py-12">
           <div className="flex items-center gap-3 pr-12 lg:hidden">
             <span className="grid size-10 place-items-center rounded-[9px] bg-[var(--brand-panel)] text-white">
               <Layers3 size={23} strokeWidth={1.9} />

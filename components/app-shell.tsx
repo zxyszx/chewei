@@ -67,7 +67,7 @@ function SidebarToggle({ compact, toggle }: { compact: boolean; toggle: () => vo
 function Sidebar({ reminderCount, username, role, compact = false, close, toggleCompact }: { reminderCount: number; username: string; role: string; compact?: boolean; close?: () => void; toggleCompact?: () => void }) {
   return <aside className={cn("sidebar flex h-full shrink-0 flex-col border-r border-[var(--border)] transition-[width] duration-200", compact ? "w-[56px]" : "w-[240px]")}>
     <div className={cn("flex h-14 shrink-0 items-center", compact ? "justify-center" : "gap-2 px-3")}>
-      {compact ? toggleCompact && <SidebarToggle compact toggle={toggleCompact} /> : <><div className="grid size-8 shrink-0 place-items-center rounded-[7px] bg-white/12 text-white"><Layers3 size={18} /></div><strong className="min-w-0 flex-1 truncate text-[14px]">Chewei</strong>{toggleCompact && <SidebarToggle compact={false} toggle={toggleCompact} />}</>}
+      {compact ? toggleCompact && <SidebarToggle compact toggle={toggleCompact} /> : <><div className="sidebar-brand-mark grid size-8 shrink-0 place-items-center rounded-[7px]"><Layers3 size={18} /></div><strong className="min-w-0 flex-1 truncate text-[14px]">Chewei</strong>{toggleCompact && <SidebarToggle compact={false} toggle={toggleCompact} />}</>}
       {close && <button autoFocus onClick={close} className="sidebar-icon-button ml-auto" aria-label="关闭菜单"><X size={18} /></button>}
     </div>
     <nav className={cn("flex-1 overflow-y-auto py-2", compact ? "px-1.5" : "px-2.5")} aria-label="主导航">
@@ -79,6 +79,20 @@ function Sidebar({ reminderCount, username, role, compact = false, close, toggle
     </nav>
     <div className={cn("shrink-0 border-t border-[var(--border)]", compact ? "p-1.5" : "p-2")}><AccountMenu username={username} role={role} compact={compact} /></div>
   </aside>;
+}
+
+function HeaderAccountMenu({ username, role }: { username: string; role: string }) {
+  return <details className="account-menu header-account-menu relative desktop-only">
+    <summary className="header-account-trigger" aria-label="打开顶部账号菜单" title="账号菜单">
+      <span className="account-avatar">{username.slice(0, 1).toUpperCase()}</span>
+    </summary>
+    <div className="menu-popover header-account-popover z-50 w-[240px] rounded-[8px] border border-[var(--border)] p-1.5 shadow-xl">
+      <div className="border-b border-[var(--border)] px-2.5 pb-2.5 pt-1.5"><p className="truncate text-[13px] font-semibold">{username}</p><p className="mt-0.5 text-[11px] text-[var(--muted-foreground)]">{role === "ADMIN" ? "系统管理员" : "运营账号"}</p></div>
+      <div className="py-1.5"><Link href="/settings" className="menu-item"><Settings size={15} /><span>系统设置</span></Link><InstallAppButton showLabel /></div>
+      <div className="border-y border-[var(--border)] py-1.5"><p className="px-2.5 pb-1 text-[10px] font-semibold text-[var(--muted-foreground)]">外观</p><ThemePicker /></div>
+      <form action={logoutAction} className="pt-1.5"><button className="menu-item menu-item-danger w-full"><LogOut size={15} /><span>退出登录</span></button></form>
+    </div>
+  </details>;
 }
 
 function MobileBottomNav({ reminderCount, openMore }: { reminderCount: number; openMore: () => void }) {
@@ -118,7 +132,13 @@ export function AppShell({ children, reminderCount, username, role }: { children
         <span className="desktop-only text-[var(--border-strong)]">/</span>
         <strong className="desktop-only truncate text-[12px] font-semibold">{pageNames[pathname] || "Chewei"}</strong>
       </div>
-      <div className="flex items-center gap-2"><GlobalSearch compact={false} /><ThemeToggle /></div>
+      <div className="flex items-center gap-1.5">
+        <GlobalSearch compact={false} />
+        <Link href="/reminders" className="icon-button relative desktop-only" aria-label="查看提醒" title="查看提醒"><Bell size={17} />{reminderCount > 0 && <span className="header-notification-dot" />}</Link>
+        <Link href="/settings" className="icon-button desktop-only" aria-label="打开系统设置" title="系统设置"><Settings size={17} /></Link>
+        <ThemeToggle />
+        <HeaderAccountMenu username={username} role={role} />
+      </div>
     </header>
     {mobileNav && <div className="fixed inset-0 z-[90] bg-black/35" onClick={() => setMobileNav(false)}><div role="dialog" aria-modal="true" aria-label="移动导航" className="h-full w-[240px]" onClick={(event) => event.stopPropagation()}><Sidebar reminderCount={reminderCount} username={username} role={role} close={() => setMobileNav(false)} /></div></div>}
     <div className="app-content min-w-0 flex-1 pl-[var(--sidebar-width)]"><main id="main-content" className="app-main min-h-dvh px-3 pb-8 md:px-5 xl:px-6">{children}</main></div>
