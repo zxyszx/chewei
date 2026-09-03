@@ -6,8 +6,8 @@ import { cn } from "@/lib/utils";
 
 export type ThemePreference = "light" | "dark" | "system";
 
-const storageKey = "parking-theme";
-const changeEvent = "parking-theme-change";
+const storageKey = "chewei-theme-v2";
+const changeEvent = "chewei-theme-change";
 const options = [
   { value: "light" as const, label: "浅色", icon: Sun },
   { value: "dark" as const, label: "深色", icon: Moon },
@@ -24,7 +24,7 @@ function applyTheme(preference: ThemePreference) {
 
 function storedTheme(): ThemePreference {
   const saved = window.localStorage.getItem(storageKey);
-  return saved === "light" || saved === "dark" ? saved : "system";
+  return saved === "light" || saved === "dark" || saved === "system" ? saved : "light";
 }
 
 export function useThemePreference() {
@@ -41,7 +41,7 @@ export function useThemePreference() {
       };
     },
     storedTheme,
-    (): ThemePreference => "system",
+    (): ThemePreference => "light",
   );
 
   useEffect(() => {

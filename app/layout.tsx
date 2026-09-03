@@ -17,7 +17,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="zh-CN" suppressHydrationWarning>
       <body>
         {children}
-        <Script id="parking-theme" strategy="beforeInteractive">{`(function(){try{var p=localStorage.getItem('parking-theme')||'system';var t=p==='system'?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):p;document.documentElement.dataset.theme=t;document.documentElement.style.colorScheme=t}catch(e){document.documentElement.dataset.theme='light'}})()`}</Script>
+        <Script id="chewei-theme" strategy="beforeInteractive">{`(function(){try{var p=localStorage.getItem('chewei-theme-v2')||'light';var t=p==='system'?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):p;document.documentElement.dataset.theme=t;document.documentElement.style.colorScheme=t}catch(e){document.documentElement.dataset.theme='light'}})()`}</Script>
         <ServiceWorkerRegistration />
         <Toaster position="top-center" richColors closeButton />
       </body>

@@ -205,7 +205,7 @@ export default async function RenewalsPage({
                   </td>
                   <td>
                     <Link
-                      className="text-[#2457bd]"
+                      className="text-[var(--accent)]"
                       href={`/slots?open=${record.slotId}`}
                     >
                       #{record.slot.slotNumber}
