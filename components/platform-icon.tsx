@@ -40,6 +40,14 @@ const fallbackColors: Record<string, string> = {
   chatgpt: "#10a37f",
 };
 
+const wordmarks: Record<string, string> = {
+  "disney-plus": "D+",
+  iqiyi: "iQIYI",
+  "prime-video": "prime",
+  viki: "Viki",
+  chatgpt: "GPT",
+};
+
 export function PlatformIcon({ slug, name, icon: customIcon, size = 18, className }: { slug: string; name: string; icon?: string | null; size?: number; className?: string }) {
   const icon = brandIcons[slug];
   const color = icon ? `#${icon.hex}` : fallbackColors[slug] || "#667085";
@@ -57,7 +65,7 @@ export function PlatformIcon({ slug, name, icon: customIcon, size = 18, classNam
           <path d={icon.path} fill={color} />
         </svg>
       ) : (
-        <span className="font-bold leading-none" style={{ color, fontSize: Math.max(11, size - 4) }}>{name.slice(0, 1).toUpperCase()}</span>
+        <span className="font-bold leading-none" style={{ color, fontSize: wordmarks[slug] ? Math.max(7, Math.round(size * 0.42)) : Math.max(11, size - 4) }}>{wordmarks[slug] || name.slice(0, 1).toUpperCase()}</span>
       )}
     </span>
   );

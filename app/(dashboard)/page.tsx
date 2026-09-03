@@ -10,6 +10,7 @@ import { seatMetrics } from "@/lib/seat-metrics";
 export const metadata = { title: "总览" };
 
 const operationNames: Record<string, string> = {
+  SEED_DATABASE: "初始化数据",
   CREATE_SLOT: "创建合租车位", UPDATE_SLOT: "编辑合租车位", DELETE_SLOT: "删除合租车位",
   ADD_MEMBER: "添加车友", UPDATE_MEMBER: "编辑车友", DELETE_MEMBER: "删除车友",
   EXIT_MEMBER: "车友退出", MOVE_MEMBER: "更换账号席位", RENEW_MEMBER: "续费",

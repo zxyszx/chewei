@@ -7,6 +7,12 @@ describe("platform catalog", () => {
     expect(searchPlatformCatalog("爱奇艺")[0]?.slug).toBe("iqiyi");
   });
 
+  it("keeps an exact Chinese platform match available to the picker", () => {
+    expect(searchPlatformCatalog("爱奇艺")).toEqual([
+      expect.objectContaining({ name: "iQIYI", slug: "iqiyi" }),
+    ]);
+  });
+
   it("normalizes familiar names", () => {
     expect(normalizePlatformQuery(" YouTube Premium ")).toBe("youtube-premium");
     expect(searchPlatformCatalog("Google One")[0]?.slug).toBe("google-drive");

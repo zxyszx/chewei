@@ -1,4 +1,4 @@
-const CACHE_VERSION = "parking-shell-v1";
+const CACHE_VERSION = "chewei-shell-v2";
 
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (event) => {

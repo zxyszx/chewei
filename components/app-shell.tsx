@@ -10,7 +10,8 @@ import {
 } from "lucide-react";
 import { logoutAction } from "@/app/actions";
 import { InstallAppButton } from "@/components/install-app-button";
-import { ThemePicker } from "@/components/theme-switcher";
+import { GlobalSearch } from "@/components/global-search";
+import { ThemePicker, ThemeToggle } from "@/components/theme-switcher";
 import { cn } from "@/lib/utils";
 
 const navigation = [
@@ -18,6 +19,11 @@ const navigation = [
   { label: "分析", items: [["/analytics", "数据统计", ChartNoAxesCombined]] },
   { label: "系统", items: [["/logs", "操作日志", History], ["/settings", "系统设置", Settings]] },
 ] as const;
+
+const pageNames: Record<string, string> = {
+  "/": "总览", "/slots": "合租车位", "/members": "车友", "/renewals": "续费",
+  "/reminders": "提醒", "/analytics": "数据统计", "/logs": "操作日志", "/settings": "系统设置",
+};
 
 function NavPending() {
   const { pending } = useLinkStatus();
@@ -88,6 +94,7 @@ function MobileBottomNav({ reminderCount, openMore }: { reminderCount: number; o
 }
 
 export function AppShell({ children, reminderCount, username, role }: { children: React.ReactNode; reminderCount: number; username: string; role: string }) {
+  const pathname = usePathname();
   const [mobileNav, setMobileNav] = useState(false);
   const [sidebarCompact, setSidebarCompact] = useState(false);
   useEffect(() => {
@@ -103,7 +110,16 @@ export function AppShell({ children, reminderCount, username, role }: { children
   return <div className="flex min-h-dvh" style={{ "--sidebar-width": sidebarCompact ? "56px" : "240px" } as React.CSSProperties}>
     <a href="#main-content" className="skip-link">跳到主要内容</a>
     <div className="fixed inset-y-0 left-0 z-40 desktop-only"><Sidebar reminderCount={reminderCount} username={username} role={role} compact={sidebarCompact} toggleCompact={toggleSidebar} /></div>
-    <button className="mobile-sidebar-trigger mobile-only" onClick={() => setMobileNav(true)} aria-label="打开侧栏" title="打开侧栏"><Menu size={19} /></button>
+    <header className="workspace-topbar">
+      <div className="flex min-w-0 items-center gap-2">
+        <button className="mobile-only icon-button" onClick={() => setMobileNav(true)} aria-label="打开侧栏" title="打开侧栏"><Menu size={19} /></button>
+        <span className="workspace-brand mobile-only"><Layers3 size={17} />Chewei</span>
+        <span className="desktop-only text-[12px] text-[var(--muted-foreground)]">工作区</span>
+        <span className="desktop-only text-[var(--border-strong)]">/</span>
+        <strong className="desktop-only truncate text-[12px] font-semibold">{pageNames[pathname] || "Chewei"}</strong>
+      </div>
+      <div className="flex items-center gap-2"><GlobalSearch compact={false} /><ThemeToggle /></div>
+    </header>
     {mobileNav && <div className="fixed inset-0 z-[90] bg-black/35" onClick={() => setMobileNav(false)}><div role="dialog" aria-modal="true" aria-label="移动导航" className="h-full w-[240px]" onClick={(event) => event.stopPropagation()}><Sidebar reminderCount={reminderCount} username={username} role={role} close={() => setMobileNav(false)} /></div></div>}
     <div className="app-content min-w-0 flex-1 pl-[var(--sidebar-width)]"><main id="main-content" className="app-main min-h-dvh px-3 pb-8 md:px-5 xl:px-6">{children}</main></div>
     <MobileBottomNav reminderCount={reminderCount} openMore={() => setMobileNav(true)} />
