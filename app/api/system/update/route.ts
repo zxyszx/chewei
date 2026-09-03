@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 const requestFile = process.env.UPDATE_REQUEST_FILE || "";
 const statusFile = process.env.UPDATE_STATUS_FILE || "";
-const repository = process.env.UPDATE_REPOSITORY || "zxyszx/parking-space-manager";
+const repository = process.env.UPDATE_REPOSITORY || "zxyszx/chewei";
 const branch = process.env.UPDATE_BRANCH || "main";
 
 async function readStatus() {

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-INSTALL_DIR="${PARKING_INSTALL_DIR:-/opt/parking-space-manager}"
-REPOSITORY_URL="https://github.com/zxyszx/parking-space-manager.git"
+INSTALL_DIR="${PARKING_INSTALL_DIR:-/opt/chewei}"
+REPOSITORY_URL="https://github.com/zxyszx/chewei.git"
 
 log() { printf '[车位系统] %s\n' "$*"; }
 fail() { printf '[错误] %s\n' "$*" >&2; exit 1; }

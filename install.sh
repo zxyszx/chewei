@@ -99,7 +99,7 @@ configure_env() {
     printf 'ENCRYPTION_KEY=%s\n' "$(openssl rand -hex 32)"
     printf 'NEXT_SERVER_ACTIONS_ENCRYPTION_KEY=%s\n' "$(openssl rand -base64 32 | tr -d '\n')"
     printf 'ADMIN_USERNAME=%s\nADMIN_PASSWORD=%s\n' "${username}" "${password}"
-    printf 'SESSION_COOKIE_SECURE=\nAPP_PORT=3000\nUPDATE_REPOSITORY=zxyszx/parking-space-manager\nUPDATE_BRANCH=main\n'
+    printf 'SESSION_COOKIE_SECURE=\nAPP_PORT=3311\nUPDATE_REPOSITORY=zxyszx/chewei\nUPDATE_BRANCH=main\n'
   } > "${ENV_FILE}"
   chmod 0600 "${ENV_FILE}"
 }
@@ -151,7 +151,7 @@ process_update() {
   write_update_status updating "正在备份、构建并更新"
   if ! git diff --quiet || ! git diff --cached --quiet; then fail "仓库有未提交修改，已停止网页更新"; fi
   branch="$(awk -F= '$1=="UPDATE_BRANCH"{print $2}' "${ENV_FILE}" | tail -n1)"; branch="${branch:-main}"
-  repository="$(awk -F= '$1=="UPDATE_REPOSITORY"{print $2}' "${ENV_FILE}" | tail -n1)"; repository="${repository:-zxyszx/parking-space-manager}"
+  repository="$(awk -F= '$1=="UPDATE_REPOSITORY"{print $2}' "${ENV_FILE}" | tail -n1)"; repository="${repository:-zxyszx/chewei}"
   git fetch "https://github.com/${repository}.git" "${branch}"
   source_sha="$(git rev-parse HEAD)"; latest="$(git rev-parse FETCH_HEAD)"
   if [[ "${source_sha}" != "${latest}" ]]; then git merge --ff-only FETCH_HEAD; fi
@@ -176,7 +176,7 @@ restore_database() {
 usage() {
   cat <<'EOF'
 用法：./install.sh <命令>
-  install             一键安装并开放 APP_PORT（默认 3000）
+  install             一键安装并开放 APP_PORT（默认 3311）
   update              备份、构建、迁移并更新
   backup              备份并校验 PostgreSQL
   restore <备份>     恢复 PostgreSQL 备份

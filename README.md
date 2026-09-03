@@ -30,12 +30,12 @@
 ### 2. 一键拉取并安装
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/zxyszx/parking-space-manager/main/bootstrap.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/zxyszx/chewei/main/bootstrap.sh | sudo bash
 ```
 
 安装时只需输入管理员账号和不少于 10 位的密码。脚本会自动：
 
-1. 将公开仓库克隆到 `/opt/parking-space-manager`。
+1. 将公开仓库克隆到 `/opt/chewei`。
 2. 生成数据库、登录、加密和 Server Action 密钥。
 3. 构建应用镜像并启动 PostgreSQL 与应用容器。
 4. 执行数据库迁移和初始化。
@@ -44,13 +44,13 @@ curl -fsSL https://raw.githubusercontent.com/zxyszx/parking-space-manager/main/b
 安装完成后直接访问：
 
 ```text
-http://服务器IP:3000
+http://服务器IP:3311
 ```
 
 ### 3. 使用 1Panel 配置域名和 HTTPS
 
 1. 打开 1Panel 的“网站”，新建“反向代理”网站。
-2. 代理地址填写 `http://127.0.0.1:3000`。
+2. 代理地址填写 `http://127.0.0.1:3311`。
 3. 绑定自己的域名。
 4. 在 1Panel 中申请证书并开启 HTTPS。
 
@@ -61,21 +61,21 @@ http://服务器IP:3000
 指定安装目录：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/zxyszx/parking-space-manager/main/bootstrap.sh | sudo PARKING_INSTALL_DIR=/opt/my-parking bash
+curl -fsSL https://raw.githubusercontent.com/zxyszx/chewei/main/bootstrap.sh | sudo PARKING_INSTALL_DIR=/opt/my-parking bash
 ```
 
 手动拉取公开仓库：
 
 ```bash
-sudo git clone https://github.com/zxyszx/parking-space-manager.git /opt/parking-space-manager
-cd /opt/parking-space-manager
+sudo git clone https://github.com/zxyszx/chewei.git /opt/chewei
+cd /opt/chewei
 sudo ./install.sh install
 ```
 
-修改端口时编辑 `/opt/parking-space-manager/.env.production` 中的 `APP_PORT`，然后执行：
+修改端口时编辑 `/opt/chewei/.env.production` 中的 `APP_PORT`，然后执行：
 
 ```bash
-cd /opt/parking-space-manager
+cd /opt/chewei
 sudo ./install.sh update
 ```
 
@@ -86,7 +86,7 @@ sudo ./install.sh update
 也可以在服务器手动更新：
 
 ```bash
-cd /opt/parking-space-manager
+cd /opt/chewei
 sudo ./install.sh update
 ```
 
@@ -103,17 +103,17 @@ sudo ./install.sh update
 ### 服务器数据库灾备
 
 ```bash
-cd /opt/parking-space-manager
+cd /opt/chewei
 sudo ./install.sh backup
 sudo ./install.sh restore backups/parking-20260903T120000Z.dump
 ```
 
-服务器备份会使用 PostgreSQL 自带格式创建并立即校验。建议异机保存 `/opt/parking-space-manager/backups/` 和 `.env.production`。
+服务器备份会使用 PostgreSQL 自带格式创建并立即校验。建议异机保存 `/opt/chewei/backups/` 和 `.env.production`。
 
 ## 日常管理
 
 ```bash
-cd /opt/parking-space-manager
+cd /opt/chewei
 sudo ./install.sh status   # 容器状态与健康检查
 sudo ./install.sh logs     # 最近 200 行应用日志
 sudo ./install.sh backup   # 创建并校验数据库备份

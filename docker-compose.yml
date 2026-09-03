@@ -1,5 +1,6 @@
 services:
   db:
+    container_name: chewei-db
     image: postgres:18-alpine
     restart: unless-stopped
     environment:
@@ -16,6 +17,7 @@ services:
       retries: 20
 
   app:
+    container_name: chewei
     image: parking-space-manager-app:latest
     build:
       context: .
@@ -34,7 +36,7 @@ services:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?请设置 ADMIN_PASSWORD}
       SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-}
       APP_COMMIT_SHA: ${APP_COMMIT_SHA:-unknown}
-      UPDATE_REPOSITORY: ${UPDATE_REPOSITORY:-zxyszx/parking-space-manager}
+      UPDATE_REPOSITORY: ${UPDATE_REPOSITORY:-zxyszx/chewei}
       UPDATE_BRANCH: ${UPDATE_BRANCH:-main}
       WEB_UPDATE_ENABLED: ${WEB_UPDATE_ENABLED:-false}
       UPDATE_REQUEST_FILE: /app/control/update.request
@@ -43,7 +45,7 @@ services:
     volumes:
       - ./data/control:/app/control
     ports:
-      - "${APP_PORT:-3000}:3000"
+      - "${APP_PORT:-3311}:3000"
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:3000/api/health"]
       interval: 15s

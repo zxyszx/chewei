@@ -7,18 +7,18 @@
 服务器需要 Git、Docker Engine 和 Docker Compose Plugin。
 
 ```bash
-git clone https://github.com/zxyszx/parking-space-manager.git
-cd parking-space-manager
+git clone https://github.com/zxyszx/chewei.git
+cd chewei
 chmod +x install.sh
 sudo ./install.sh install
 ```
 
-首次只会询问管理员账号和密码，其余密钥自动生成。包括 Server Action 密钥在内的密钥会跨版本保留，避免更新后旧页面操作失效。默认对外提供 `3000` 端口，可在 `.env.production` 修改 `APP_PORT`。
+首次只会询问管理员账号和密码，其余密钥自动生成。包括 Server Action 密钥在内的密钥会跨版本保留，避免更新后旧页面操作失效。默认对外提供 `3311` 端口，可在 `.env.production` 修改 `APP_PORT`。
 
 ## 在 1Panel 中反代
 
 1. 新建一个“反向代理”网站。
-2. 代理地址填写 `http://127.0.0.1:3000`。
+2. 代理地址填写 `http://127.0.0.1:3311`。
 3. 在 1Panel 中绑定域名、申请证书并开启 HTTPS。
 4. 保留 `Host` 头，并让 1Panel 传递 `X-Forwarded-Proto`。
 
