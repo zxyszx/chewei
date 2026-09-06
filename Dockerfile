@@ -19,7 +19,7 @@ ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     HOSTNAME=0.0.0.0 \
     PORT=3000
-RUN apk add --no-cache curl && addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs
+RUN apk add --no-cache curl su-exec && addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 --ingroup nodejs nextjs
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
@@ -28,6 +28,5 @@ COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
 COPY --from=builder /app/package.json ./package.json
 RUN chown -R nextjs:nodejs /app
-USER nextjs
 EXPOSE 3000
-CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy && npm run db:bootstrap && node server.js"]
+CMD ["sh", "-c", "chown -R nextjs:nodejs /app/backups && exec su-exec nextjs:nodejs sh -c './node_modules/.bin/prisma migrate deploy && npm run db:bootstrap && exec node server.js'"]
