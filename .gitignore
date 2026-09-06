@@ -6,7 +6,7 @@ node_modules
 generated
 coverage
 tmp/
-backups/
+/backups/
 data/control/
 *.log
 *.tsbuildinfo

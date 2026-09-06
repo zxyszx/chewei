@@ -2,6 +2,7 @@ import { z } from "zod";
 import { cookies } from "next/headers";
 import { Prisma } from "@/generated/prisma/client";
 import { requireAdmin } from "@/lib/auth";
+import { backupFilename, createBackupBody } from "@/lib/backup-data";
 import { encryptionKeyFingerprint } from "@/lib/crypto";
 import { prisma } from "@/lib/prisma";
 
@@ -31,11 +32,8 @@ function assertSameOrigin(request: Request) {
 
 export async function GET() {
   await requireAdmin();
-  const [platforms, slots, members, renewals, operationLogs, users, settings] = await Promise.all([
-    prisma.platform.findMany(), prisma.parkingSlot.findMany(), prisma.member.findMany(), prisma.renewal.findMany(), prisma.operationLog.findMany(), prisma.user.findMany(), prisma.setting.findMany(),
-  ]);
-  const body = JSON.stringify({ version: 3, exportedAt: new Date().toISOString(), encryptionKeyFingerprint: encryptionKeyFingerprint(), platforms, slots, members, renewals: renewals.map((r) => ({ ...r, amount: r.amount.toString() })), operationLogs, users, settings }, null, 2);
-  return new Response(body, { headers: { "content-type": "application/json; charset=utf-8", "content-disposition": `attachment; filename="chewei-backup-${new Date().toISOString().slice(0, 10)}.json"` } });
+  const body = await createBackupBody();
+  return new Response(body, { headers: { "content-type": "application/json; charset=utf-8", "content-disposition": `attachment; filename="${backupFilename()}"`, "cache-control": "private, no-store" } });
 }
 
 export async function POST(request: Request) {

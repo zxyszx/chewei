@@ -5,6 +5,7 @@ INSTALL_DIR="${CHEWEI_INSTALL_DIR:-${PARKING_INSTALL_DIR:-$(cd "$(dirname "${BAS
 ENV_FILE="${INSTALL_DIR}/.env.production"
 STATE_DIR="${INSTALL_DIR}/.deploy"
 CONTROL_DIR="${INSTALL_DIR}/data/control"
+APP_BACKUP_DIR="${INSTALL_DIR}/data/backups"
 BACKUP_DIR="${CHEWEI_BACKUP_DIR:-${PARKING_BACKUP_DIR:-${INSTALL_DIR}/backups}}"
 # Keep the legacy unit name so existing servers continue receiving web updates.
 SERVICE_NAME="parking-space-manager-update"
@@ -50,6 +51,7 @@ backup_database() {
 
 deploy() {
   require_env; ensure_docker; require_command curl; install -d -m 0700 "${STATE_DIR}"
+  install -d -m 0750 "${APP_BACKUP_DIR}"; chown 1001:1001 "${APP_BACKUP_DIR}" 2>/dev/null || true
   local backup="" old_image="" rollback_tag="" app_was_running=false
   compose ps --status running -q app | grep -q . && app_was_running=true
   old_image="$(compose images -q app 2>/dev/null | head -n 1 || true)"

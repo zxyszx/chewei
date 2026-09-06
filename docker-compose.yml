@@ -41,9 +41,11 @@ services:
       WEB_UPDATE_ENABLED: ${WEB_UPDATE_ENABLED:-false}
       UPDATE_REQUEST_FILE: /app/control/update.request
       UPDATE_STATUS_FILE: /app/control/update-status.json
+      BACKUP_DIRECTORY: /app/backups
       TZ: Asia/Shanghai
     volumes:
       - ./data/control:/app/control
+      - ./data/backups:/app/backups
     ports:
       - "${APP_PORT:-3311}:3000"
     healthcheck:

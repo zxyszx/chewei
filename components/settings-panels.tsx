@@ -1,8 +1,8 @@
 "use client";
 
-import { Check, CheckCircle2, CircleAlert, Download, ImagePlus, LoaderCircle, Pencil, Plus, RefreshCw, RotateCcw, Search, Trash2, Upload, UserPlus, X } from "lucide-react";
+import { Archive, Check, CheckCircle2, CircleAlert, Download, ImagePlus, LoaderCircle, Pencil, Plus, RefreshCw, RotateCcw, Search, ShieldCheck, Trash2, Upload, UserPlus, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { createPlatformAction, createUserAction, deletePlatformAction, updatePlatformAction, updateRemindersAction, updateUserAction } from "@/app/actions";
 import { ActionForm } from "@/components/action-form";
@@ -80,6 +80,17 @@ export function UserSettings({ users, currentUserId, editable }: { users: UserRe
 }
 
 type UpdateInfo = { enabled: boolean; current: string; latest: { sha: string; message: string; date: string | null } | null; updateAvailable: boolean; status: { state?: string; message?: string; updatedAt?: string } | null; error?: string };
+type BackupRecord = { name: string; size: number; createdAt: string };
+
+function backupSize(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function backupTime(value: string) {
+  return new Intl.DateTimeFormat("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(value));
+}
 
 export function SystemMaintenance({ editable, view = "all" }: { editable: boolean; view?: "all" | "backup" | "update" }) {
   const router = useRouter();
@@ -89,12 +100,46 @@ export function SystemMaintenance({ editable, view = "all" }: { editable: boolea
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [checking, setChecking] = useState(editable && view !== "backup");
   const [updating, setUpdating] = useState(false);
+  const [backups, setBackups] = useState<BackupRecord[]>([]);
+  const [backupsLoading, setBackupsLoading] = useState(editable && view !== "update");
+  const [creatingBackup, setCreatingBackup] = useState(false);
+  const [deleteBackup, setDeleteBackup] = useState<BackupRecord | null>(null);
+  const [deletingBackup, setDeletingBackup] = useState(false);
   const clearRestore = () => { setRestoreFile(null); if (fileInput.current) fileInput.current.value = ""; };
+
+  const loadBackups = useCallback(async () => {
+    if (!editable || view === "update") return;
+    setBackupsLoading(true);
+    try {
+      const response = await fetch("/api/backups", { cache: "no-store" });
+      const data = await response.json() as { backups?: BackupRecord[]; error?: string };
+      if (!response.ok) throw new Error(data.error || "读取备份失败");
+      setBackups(data.backups || []);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "读取备份失败");
+    } finally {
+      setBackupsLoading(false);
+    }
+  }, [editable, view]);
 
   useEffect(() => {
     if (!editable || view === "backup") return;
     let active = true;
     fetch("/api/system/update", { cache: "no-store" }).then((response) => response.json()).then((data: UpdateInfo) => { if (active) setUpdateInfo(data); }).catch(() => { if (active) toast.error("检查更新失败"); }).finally(() => { if (active) setChecking(false); });
+    return () => { active = false; };
+  }, [editable, view]);
+
+  useEffect(() => {
+    if (!editable || view === "update") return;
+    let active = true;
+    fetch("/api/backups", { cache: "no-store" })
+      .then(async (response) => {
+        const data = await response.json() as { backups?: BackupRecord[]; error?: string };
+        if (!response.ok) throw new Error(data.error || "读取备份失败");
+        if (active) setBackups(data.backups || []);
+      })
+      .catch((error) => { if (active) toast.error(error instanceof Error ? error.message : "读取备份失败"); })
+      .finally(() => { if (active) setBackupsLoading(false); });
     return () => { active = false; };
   }, [editable, view]);
 
@@ -124,6 +169,38 @@ export function SystemMaintenance({ editable, view = "all" }: { editable: boolea
       toast.success("已提交更新，服务会自动备份并重启");
       setUpdateInfo((current) => current ? { ...current, updateAvailable: false, status: { state: "queued", message: "已提交更新请求", updatedAt: new Date().toISOString() } } : current);
     } catch (error) { toast.error(error instanceof Error ? error.message : "更新请求失败"); } finally { setUpdating(false); }
+  }
+
+  async function createLocalBackup() {
+    setCreatingBackup(true);
+    try {
+      const response = await fetch("/api/backups", { method: "POST" });
+      const data = await response.json() as { ok?: boolean; error?: string };
+      if (!response.ok) throw new Error(data.error || "创建备份失败");
+      toast.success("备份已创建并保存到服务器");
+      await loadBackups();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "创建备份失败");
+    } finally {
+      setCreatingBackup(false);
+    }
+  }
+
+  async function removeLocalBackup() {
+    if (!deleteBackup) return;
+    setDeletingBackup(true);
+    try {
+      const response = await fetch(`/api/backups?name=${encodeURIComponent(deleteBackup.name)}`, { method: "DELETE" });
+      const data = await response.json() as { ok?: boolean; error?: string };
+      if (!response.ok) throw new Error(data.error || "删除备份失败");
+      toast.success("备份已删除");
+      setDeleteBackup(null);
+      await loadBackups();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "删除备份失败");
+    } finally {
+      setDeletingBackup(false);
+    }
   }
 
   async function restore() {
@@ -157,7 +234,16 @@ export function SystemMaintenance({ editable, view = "all" }: { editable: boolea
       {updateInfo && !updateInfo.enabled && <p className="mb-3 text-[12px] text-[#a16207]">网页更新服务未启用，请在服务器重新执行一键安装。</p>}
       <div className="flex flex-wrap gap-2"><button className="btn" type="button" disabled={!editable || checking || updateRunning} onClick={checkUpdate}>{checking ? <LoaderCircle size={15} className="animate-spin" /> : <RefreshCw size={15} />}检查更新</button><button className="btn btn-primary" type="button" title={upToDate ? "当前已是最新版本" : undefined} disabled={!editable || updating || updateRunning || !updateInfo?.enabled || !updateInfo?.updateAvailable} onClick={requestUpdate}>{(updating || updateRunning) && <LoaderCircle size={15} className="animate-spin" />}{updateRunning ? "更新中" : "立即更新"}</button></div>
     </section>}
-    {view !== "update" && <><div className="grid gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(280px,0.8fr)]"><section className="panel p-5"><div className="flex flex-wrap items-start justify-between gap-4 border-b border-[var(--border)] pb-5"><div><div className="mb-2 flex items-center gap-2"><Download size={19} className="text-[var(--primary)]" /><h2 className="section-heading">完整数据备份</h2></div><p className="max-w-[680px] text-[12px] leading-6 text-[var(--muted-foreground)]">包含平台、合租账号、车友、续费、管理员、操作日志与系统设置。账号密码字段保持加密或哈希状态；备份仍属于敏感文件，请妥善保存。</p></div>{editable && <a className="btn btn-primary" href="/api/backup"><Download size={16} />创建并下载备份</a>}</div><div className="mt-5 rounded-[8px] border border-[var(--border)] bg-[var(--surface-subtle)] p-4"><strong className="text-[13px]">恢复要求</strong><p className="mt-2 text-[12px] leading-6 text-[var(--muted-foreground)]">新服务器必须配置与原服务器相同的 <code className="rounded bg-[var(--surface)] px-1.5 py-0.5">ENCRYPTION_KEY</code>。恢复会覆盖当前全部业务数据，并使当前登录会话失效。</p></div></section><aside className="panel p-5"><h2 className="section-heading">新服务器恢复</h2><ol className="mt-4 space-y-3 text-[12px] leading-5 text-[var(--muted-foreground)]"><li><strong className="mr-2 text-[var(--foreground)]">1.</strong>先完成新服务器的一键安装</li><li><strong className="mr-2 text-[var(--foreground)]">2.</strong>确认加密密钥与原服务器一致</li><li><strong className="mr-2 text-[var(--foreground)]">3.</strong>上传原始 JSON 备份文件</li><li><strong className="mr-2 text-[var(--foreground)]">4.</strong>核对文件名后确认覆盖恢复</li></ol>{editable ? <button className="btn mt-5 w-full" type="button" onClick={() => fileInput.current?.click()}><Upload size={15} />选择备份文件</button> : <p className="mt-4 text-[12px] text-[var(--muted-foreground)]">仅管理员可以恢复备份。</p>}<input ref={fileInput} className="sr-only" type="file" accept="application/json,.json" onChange={(event) => setRestoreFile(event.target.files?.[0] || null)} /></aside></div><section className="panel flex items-start gap-3 p-4"><CircleAlert size={20} className="mt-0.5 shrink-0 text-[var(--warning)]" /><div><strong className="block text-[13px]">恢复前请先下载当前数据备份</strong><p className="mt-1 text-[12px] leading-5 text-[var(--muted-foreground)]">恢复过程采用事务写入，校验失败不会执行覆盖。成功后请使用备份中的管理员账号重新登录。</p></div></section>
+    {view !== "update" && <><div className="grid gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(300px,0.8fr)]">
+      <section className="panel overflow-hidden">
+        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[var(--border)] p-5"><div><div className="mb-2 flex items-center gap-2"><Archive size={19} className="text-[var(--accent)]" /><h2 className="section-heading">完整数据备份</h2></div><p className="max-w-[700px] text-[12px] leading-6 text-[var(--muted-foreground)]">包含平台、合租账号、车友、续费、管理员、操作日志与系统设置。平台密码保持加密、登录密码保持哈希状态。</p></div>{editable && <div className="flex gap-2"><button type="button" className="btn icon-btn" onClick={() => void loadBackups()} disabled={backupsLoading || creatingBackup} aria-label="刷新备份列表" title="刷新"><RefreshCw size={16} className={backupsLoading ? "animate-spin" : ""} /></button><button type="button" className="btn btn-primary" onClick={createLocalBackup} disabled={creatingBackup}>{creatingBackup ? <LoaderCircle size={16} className="animate-spin" /> : <Archive size={16} />}{creatingBackup ? "正在创建" : "创建备份"}</button></div>}</div>
+        <div className="px-5 pb-5 pt-4"><div className="mb-2 flex items-center justify-between"><strong className="text-[13px]">本地备份</strong><span className="text-[11px] text-[var(--muted-foreground)]">显示最近 10 份</span></div><div className="overflow-hidden rounded-[8px] border border-[var(--border)]">
+          {backupsLoading ? <div className="flex min-h-24 items-center justify-center gap-2 text-[12px] text-[var(--muted-foreground)]"><LoaderCircle size={16} className="animate-spin" />正在读取备份</div> : backups.length ? backups.map((backup) => <div key={backup.name} className="flex min-h-[58px] items-center gap-3 border-b border-[var(--border)] px-4 py-2.5 last:border-b-0"><span className="grid size-8 shrink-0 place-items-center rounded-[7px] bg-[var(--success-soft)] text-[var(--success)]"><ShieldCheck size={17} /></span><div className="min-w-0 flex-1"><strong className="block truncate text-[12px]" title={backup.name}>{backup.name}</strong><span className="mt-1 block text-[11px] text-[var(--muted-foreground)]">{backupTime(backup.createdAt)} · {backupSize(backup.size)}</span></div><a className="btn icon-btn size-9" href={`/api/backups?name=${encodeURIComponent(backup.name)}`} aria-label={`下载 ${backup.name}`} title="下载备份"><Download size={15} /></a><button type="button" className="btn icon-btn size-9 text-[var(--danger)]" onClick={() => setDeleteBackup(backup)} aria-label={`删除 ${backup.name}`} title="删除备份"><Trash2 size={15} /></button></div>) : <div className="flex min-h-24 flex-col items-center justify-center gap-1 text-center"><strong className="text-[12px]">还没有服务器备份</strong><span className="text-[11px] text-[var(--muted-foreground)]">点击“创建备份”保存第一份</span></div>}
+        </div><p className="mt-3 text-[11px] leading-5 text-[var(--muted-foreground)]">文件保存在服务器持久目录中。建议定期下载到其他设备，避免服务器磁盘故障时同时丢失数据与备份。</p></div>
+      </section>
+      <aside className="panel p-5"><h2 className="section-heading">新服务器恢复</h2><ol className="mt-4 space-y-3 text-[12px] leading-5 text-[var(--muted-foreground)]"><li><strong className="mr-2 text-[var(--foreground)]">1.</strong>先完成新服务器的一键安装</li><li><strong className="mr-2 text-[var(--foreground)]">2.</strong>确认加密密钥与原服务器一致</li><li><strong className="mr-2 text-[var(--foreground)]">3.</strong>上传原始 JSON 备份文件</li><li><strong className="mr-2 text-[var(--foreground)]">4.</strong>核对文件名后确认覆盖恢复</li></ol><div className="mt-4 rounded-[7px] bg-[var(--surface-subtle)] p-3 text-[11px] leading-5 text-[var(--muted-foreground)]">恢复会覆盖全部业务数据并使当前登录会话失效。校验失败时不会写入数据。</div>{editable ? <button className="btn mt-5 w-full" type="button" onClick={() => fileInput.current?.click()}><Upload size={15} />选择备份文件</button> : <p className="mt-4 text-[12px] text-[var(--muted-foreground)]">仅管理员可以恢复备份。</p>}<input ref={fileInput} className="sr-only" type="file" accept="application/json,.json" onChange={(event) => setRestoreFile(event.target.files?.[0] || null)} /></aside>
+    </div><section className="panel flex items-start gap-3 p-4"><CircleAlert size={20} className="mt-0.5 shrink-0 text-[var(--warning)]" /><div><strong className="block text-[13px]">恢复前请先创建并下载当前数据备份</strong><p className="mt-1 text-[12px] leading-5 text-[var(--muted-foreground)]">新服务器必须使用相同的 <code className="rounded bg-[var(--surface-subtle)] px-1.5 py-0.5">ENCRYPTION_KEY</code>，否则原平台密码无法解密。</p></div></section>
+      <ConfirmDialog open={Boolean(deleteBackup)} title="删除这份备份？" description={`${deleteBackup?.name || "该备份"} 将从服务器永久删除。已下载到其他设备的副本不受影响。`} confirmLabel="确认删除" pending={deletingBackup} onClose={() => { if (!deletingBackup) setDeleteBackup(null); }} onConfirm={removeLocalBackup} />
       <ConfirmDialog open={Boolean(restoreFile)} title="恢复整个系统？" description={`将用 ${restoreFile?.name || "备份文件"} 覆盖当前所有数据。该操作无法在页面内撤销。`} confirmLabel="确认恢复" pending={restoring} onClose={() => { if (!restoring) clearRestore(); }} onConfirm={restore} />
     </>}
   </div>;
