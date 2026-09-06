@@ -5,7 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
   Bell, ChartNoAxesCombined, ChevronDown, CreditCard, Database,
-  History, House, Layers3, LoaderCircle, LogOut, Menu, MoreHorizontal,
+  History, House, LoaderCircle, LogOut, Menu, MoreHorizontal,
   PanelLeft, ParkingCircle, Plus, RefreshCw, Settings, UsersRound, X,
 } from "lucide-react";
 import { logoutAction } from "@/app/actions";
@@ -17,12 +17,6 @@ const navigation = [
   { label: "业务", items: [["/", "总览", House], ["/slots", "合租车位", ParkingCircle], ["/members", "车友管理", UsersRound], ["/renewals", "续费记录", CreditCard], ["/reminders", "到期提醒", Bell]] },
   { label: "分析", items: [["/analytics", "数据统计", ChartNoAxesCombined]] },
   { label: "系统", items: [["/logs", "操作日志", History], ["/settings", "系统设置", Settings]] },
-] as const;
-
-const railNavigation = [
-  ["/", "业务", Layers3],
-  ["/analytics", "分析", ChartNoAxesCombined],
-  ["/settings", "设置", Settings],
 ] as const;
 
 const bottomNavigation = [
@@ -39,16 +33,8 @@ const pageNames: Record<string, string> = {
   "/logs": "操作日志", "/settings": "系统设置",
 };
 
-const businessPaths = ["/", "/slots", "/members", "/renewals", "/reminders"];
-
 function routeIsActive(pathname: string, href: string) {
   return href === "/" ? pathname === "/" : pathname.startsWith(href);
-}
-
-function railIsActive(pathname: string, href: string) {
-  if (href === "/") return businessPaths.some((path) => routeIsActive(pathname, path));
-  if (href === "/settings") return pathname.startsWith("/settings") || pathname.startsWith("/logs");
-  return routeIsActive(pathname, href);
 }
 
 function NavPending() {
@@ -61,9 +47,9 @@ function NavLink({ href, label, icon: Icon, badge, onClick }: { href: string; la
   const searchParams = useSearchParams();
   const [targetPath, query] = href.split("?");
   const active = href === "/" ? pathname === href : query ? pathname === targetPath && [...new URLSearchParams(query)].every(([key, value]) => searchParams.get(key) === value) : pathname.startsWith(targetPath);
-  return <Link href={href} prefetch onClick={onClick} aria-current={active ? "page" : undefined} className={cn("nav-link", active && "nav-link-active")}>
+  return <Link href={href} prefetch onClick={onClick} title={label} aria-current={active ? "page" : undefined} className={cn("nav-link", active && "nav-link-active")}>
     <span className="relative grid size-5 shrink-0 place-items-center"><Icon size={18} strokeWidth={1.8} /></span>
-    <span className="min-w-0 flex-1 truncate">{label}</span>
+    <span className="nav-label min-w-0 flex-1 truncate">{label}</span>
     {badge !== undefined && badge > 0 && <span className="nav-badge">{badge > 99 ? "99+" : badge}</span>}
     <NavPending />
   </Link>;
@@ -73,7 +59,7 @@ function AccountMenu({ username, role, compact = false }: { username: string; ro
   return <details name="chewei-popover" className={cn("account-menu relative", compact ? "header-account-menu" : "sidebar-account-menu")}>
     <summary className={cn("account-trigger", compact && "header-account-trigger")} aria-label="打开账号菜单">
       <span className="account-avatar">{username.slice(0, 1).toUpperCase()}</span>
-      {!compact && <><span className="min-w-0 flex-1 text-left"><strong className="block truncate text-[13px]">{username}</strong><small className="block truncate text-[10px] text-[var(--muted-foreground)]">{role === "ADMIN" ? "系统管理员" : "运营账号"}</small></span><ChevronDown size={15} /></>}
+      {!compact && <><span className="account-copy min-w-0 flex-1 text-left"><strong className="block truncate text-[13px]">{username}</strong><small className="block truncate text-[10px] text-[var(--muted-foreground)]">{role === "ADMIN" ? "系统管理员" : "运营账号"}</small></span><ChevronDown className="account-chevron" size={15} /></>}
     </summary>
     <div className={cn("menu-popover account-popover z-50 w-[210px] rounded-lg border border-[var(--border)] p-1.5 shadow-xl", compact && "header-account-popover")}>
       <div className="flex items-center gap-3 border-b border-[var(--border)] px-2.5 pb-2.5 pt-1.5"><span className="account-avatar">{username.slice(0, 1).toUpperCase()}</span><span className="min-w-0"><strong className="block truncate text-[13px] font-semibold">{username}</strong><span className="text-[11px] text-[var(--muted-foreground)]">{role === "ADMIN" ? "系统管理员" : "运营账号"}</span></span></div>
@@ -98,7 +84,7 @@ function QuickCreate() {
     ["/settings?tab=backup", "数据备份", Database, "violet"],
   ] as const;
   return <details ref={root} name="chewei-popover" className="quick-create relative">
-    <summary className="quick-create-trigger"><Plus size={18} /><span>新建</span><ChevronDown size={14} /></summary>
+    <summary className="quick-create-trigger" aria-label="打开快捷新建"><Plus size={18} /><span className="quick-create-label">新建</span><ChevronDown className="quick-create-chevron" size={14} /></summary>
     <div className="quick-create-popover">
       <div className="quick-create-heading"><strong>快捷新建</strong><span>选择要处理的业务</span></div>
       <div className="quick-create-grid">{items.map(([href, label, Icon, tone]) => <Link key={href} href={href} onClick={done} className="quick-create-item"><span className={`quick-create-icon quick-create-${tone}`}><Icon size={21} /></span><span>{label}</span></Link>)}</div>
@@ -108,15 +94,10 @@ function QuickCreate() {
 }
 
 function Sidebar({ reminderCount, username, role, close }: { reminderCount: number; username: string; role: string; close?: () => void }) {
-  const pathname = usePathname();
-  return <aside className="sidebar flex h-full shrink-0 border-r">
-    <div className="product-rail">
-      <Link href="/" className="product-mark" aria-label="车位管理系统总览"><ParkingCircle size={25} strokeWidth={1.8} /></Link>
-      <nav className="product-rail-nav" aria-label="功能分类">{railNavigation.map(([href, label, Icon]) => <Link key={href} href={href} title={label} aria-label={label} className={cn("product-rail-link", railIsActive(pathname, href) && "product-rail-link-active")}><Icon size={21} /><span>{label}</span></Link>)}</nav>
-    </div>
+  return <aside className={cn("sidebar flex h-full shrink-0 border-r", close && "sidebar-mobile")}>
     <div className="workspace-sidebar">
-      <div className="workspace-sidebar-header"><Link href="/" className="sidebar-wordmark"><strong>车位管理系统</strong></Link>{close && <button autoFocus onClick={close} className="sidebar-icon-button" aria-label="关闭菜单"><X size={18} /></button>}</div>
-      <div className="px-3 pb-3"><QuickCreate /></div>
+      <div className="workspace-sidebar-header"><Link href="/" className="product-mark" aria-label="车位管理系统总览"><ParkingCircle size={23} strokeWidth={1.8} /></Link><Link href="/" className="sidebar-wordmark"><strong>车位管理系统</strong><small>订阅运营工作台</small></Link>{close && <button autoFocus onClick={close} className="sidebar-icon-button" aria-label="关闭菜单"><X size={18} /></button>}</div>
+      <div className="quick-create-wrap"><QuickCreate /></div>
       <nav className="workspace-navigation" aria-label="主导航">{navigation.map((group) => <section key={group.label} className="nav-section"><div className="nav-group-label">{group.label}</div><div className="space-y-0.5">{group.items.map(([href, label, Icon]) => <NavLink key={href} href={href} label={label} icon={Icon} badge={href === "/reminders" ? reminderCount : undefined} onClick={close} />)}</div></section>)}</nav>
       <div className="workspace-sidebar-footer"><AccountMenu username={username} role={role} /></div>
     </div>
