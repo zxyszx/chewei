@@ -15,7 +15,7 @@ export function SubmitButton({ children, className, ...props }: ButtonHTMLAttrib
 }
 
 export function PageHeader({ title, description, leading, actions }: { title: string; description?: string; leading?: ReactNode; actions?: ReactNode }) {
-  return <header className={cn("page-header", actions && "page-header-actions")}><h1 className="sr-only">{title}</h1>{description && <p className="sr-only">{description}</p>}{leading}<div className="page-header-actions-slot">{actions}</div></header>;
+  return <header className={cn("page-header", actions && "page-header-actions")}><div className="min-w-0"><div className="flex items-center gap-3">{leading}<h1 className="page-title">{title}</h1></div>{description && <p className="page-description">{description}</p>}</div><div className="page-header-actions-slot">{actions}</div></header>;
 }
 
 export function MetricCard({ label, value, detail, icon, tone = "blue", className }: { label: string; value: ReactNode; detail?: ReactNode; icon: ReactNode; tone?: "blue" | "green" | "orange" | "red"; className?: string }) {
