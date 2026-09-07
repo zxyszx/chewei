@@ -2,11 +2,11 @@
 
 import Link, { useLinkStatus } from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
-  Bell, ChartNoAxesCombined, ChevronDown, CreditCard, Database,
+  Bell, ChartNoAxesCombined, ChevronDown, CreditCard,
   History, House, LoaderCircle, LogOut, Menu, MoreHorizontal,
-  PanelLeft, ParkingCircle, Plus, Settings, UsersRound, X,
+  PanelLeft, ParkingCircle, Settings, UsersRound, X,
 } from "lucide-react";
 import { logoutAction } from "@/app/actions";
 import { GlobalSearch } from "@/components/global-search";
@@ -69,33 +69,10 @@ function AccountMenu({ username, role, compact = false }: { username: string; ro
   </details>;
 }
 
-function QuickCreate() {
-  const root = useRef<HTMLDetailsElement>(null);
-  useEffect(() => {
-    const close = (event: KeyboardEvent) => { if (event.key === "Escape") root.current?.removeAttribute("open"); };
-    addEventListener("keydown", close);
-    return () => removeEventListener("keydown", close);
-  }, []);
-  const done = () => root.current?.removeAttribute("open");
-  const items = [
-    ["/slots?create=1", "新增车位", ParkingCircle],
-    ["/slots?status=空闲", "添加车友", UsersRound],
-    ["/members", "办理续费", CreditCard],
-    ["/settings?tab=backup", "数据备份", Database],
-  ] as const;
-  return <details ref={root} name="chewei-popover" className="quick-create relative">
-    <summary className="quick-create-trigger" aria-label="打开快捷新建"><Plus size={18} /><span className="quick-create-label">新建</span><ChevronDown className="quick-create-chevron" size={14} /></summary>
-    <div className="quick-create-popover">
-      {items.map(([href, label, Icon]) => <Link key={href} href={href} onClick={done} className="quick-create-item"><Icon size={16} /><span>{label}</span></Link>)}
-    </div>
-  </details>;
-}
-
 function Sidebar({ reminderCount, username, role, close }: { reminderCount: number; username: string; role: string; close?: () => void }) {
   return <aside className={cn("sidebar flex h-full shrink-0 border-r", close && "sidebar-mobile")}>
     <div className="workspace-sidebar">
       <div className="workspace-sidebar-header"><Link href="/" className="product-mark" aria-label="车位管理系统总览"><ParkingCircle size={23} strokeWidth={1.8} /></Link><Link href="/" className="sidebar-wordmark"><strong>车位管理系统</strong><small>订阅运营工作台</small></Link>{close && <button autoFocus onClick={close} className="sidebar-icon-button" aria-label="关闭菜单"><X size={18} /></button>}</div>
-      <div className="quick-create-wrap"><QuickCreate /></div>
       <nav className="workspace-navigation" aria-label="主导航">{navigation.map((group) => <section key={group.label} className="nav-section"><div className="nav-group-label">{group.label}</div><div className="space-y-0.5">{group.items.map(([href, label, Icon]) => <NavLink key={href} href={href} label={label} icon={Icon} badge={href === "/reminders" ? reminderCount : undefined} onClick={close} />)}</div></section>)}</nav>
       <div className="workspace-sidebar-footer"><AccountMenu username={username} role={role} /></div>
     </div>
