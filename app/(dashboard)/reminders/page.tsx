@@ -36,7 +36,7 @@ export default async function RemindersPage({
     orderBy: { expireDate: "asc" },
   });
   const match = (days: number, value: string) =>
-    value === "all" ||
+    (value === "all" && days <= 30) ||
     (value === "expired"
       ? days < 0
       : value === "today"
