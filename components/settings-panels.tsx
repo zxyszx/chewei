@@ -1,6 +1,6 @@
 "use client";
 
-import { Archive, Check, CheckCircle2, CircleAlert, Download, ImagePlus, LoaderCircle, Pencil, Plus, RefreshCw, RotateCcw, Search, ShieldCheck, Trash2, Upload, UserPlus, X } from "lucide-react";
+import { Archive, Check, CheckCircle2, CircleAlert, Download, FileCheck2, ImagePlus, LoaderCircle, Pencil, Plus, RefreshCw, RotateCcw, Search, ShieldCheck, Trash2, Upload, UserPlus, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -105,6 +105,7 @@ export function SystemMaintenance({ editable, view = "all" }: { editable: boolea
   const [creatingBackup, setCreatingBackup] = useState(false);
   const [deleteBackup, setDeleteBackup] = useState<BackupRecord | null>(null);
   const [deletingBackup, setDeletingBackup] = useState(false);
+  const [verifyingBackup, setVerifyingBackup] = useState<string | null>(null);
   const clearRestore = () => { setRestoreFile(null); if (fileInput.current) fileInput.current.value = ""; };
 
   const loadBackups = useCallback(async () => {
@@ -203,6 +204,20 @@ export function SystemMaintenance({ editable, view = "all" }: { editable: boolea
     }
   }
 
+  async function verifyLocalBackup(backup: BackupRecord) {
+    setVerifyingBackup(backup.name);
+    try {
+      const response = await fetch(`/api/backups?name=${encodeURIComponent(backup.name)}&verify=1`, { cache: "no-store" });
+      const data = await response.json() as { ok?: boolean; error?: string };
+      if (!response.ok) throw new Error(data.error || "备份校验失败");
+      toast.success("备份校验通过，格式、数据与加密密钥均有效");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "备份校验失败");
+    } finally {
+      setVerifyingBackup(null);
+    }
+  }
+
   async function restore() {
     if (!restoreFile) return;
     setRestoring(true);
@@ -234,15 +249,38 @@ export function SystemMaintenance({ editable, view = "all" }: { editable: boolea
       {updateInfo && !updateInfo.enabled && <p className="mb-3 text-[12px] text-[#a16207]">网页更新服务未启用，请在服务器重新执行一键安装。</p>}
       <div className="flex flex-wrap gap-2"><button className="btn" type="button" disabled={!editable || checking || updateRunning} onClick={checkUpdate}>{checking ? <LoaderCircle size={15} className="animate-spin" /> : <RefreshCw size={15} />}检查更新</button><button className="btn btn-primary" type="button" title={upToDate ? "当前已是最新版本" : undefined} disabled={!editable || updating || updateRunning || !updateInfo?.enabled || !updateInfo?.updateAvailable} onClick={requestUpdate}>{(updating || updateRunning) && <LoaderCircle size={15} className="animate-spin" />}{updateRunning ? "更新中" : "立即更新"}</button></div>
     </section>}
-    {view !== "update" && <><div className="grid gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(300px,0.8fr)]">
+    {view !== "update" && <>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div><h2 className="text-[18px] font-semibold">备份与恢复</h2><p className="mt-1 text-[12px] text-[var(--muted-foreground)]">创建、校验和下载可迁移的完整备份</p></div>
+        {editable && <button type="button" className="btn" onClick={() => void loadBackups()} disabled={backupsLoading || creatingBackup}><RefreshCw size={15} className={backupsLoading ? "animate-spin" : ""} />刷新</button>}
+      </div>
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(300px,0.8fr)]">
+        <section className="panel overflow-hidden">
+          <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[var(--border)] p-5">
+            <div><div className="mb-2 flex items-center gap-2"><Archive size={19} className="text-[var(--accent)]" /><h3 className="section-heading">完整备份</h3></div><p className="max-w-[700px] text-[12px] leading-6 text-[var(--muted-foreground)]">包含平台、合租账号、车友、续费、管理员、操作日志与系统设置。平台密码保持加密，登录密码保持哈希状态。</p></div>
+            {editable && <button type="button" className="btn btn-primary" onClick={createLocalBackup} disabled={creatingBackup}>{creatingBackup ? <LoaderCircle size={16} className="animate-spin" /> : <Archive size={16} />}{creatingBackup ? "正在创建" : "创建备份"}</button>}
+          </div>
+          <div className="px-5 pb-5 pt-4">
+            <div className="mb-2 flex items-center justify-between"><strong className="text-[13px]">本地备份</strong><span className="text-[11px] text-[var(--muted-foreground)]">显示最近 10 份</span></div>
+            <div className="overflow-hidden rounded-[8px] border border-[var(--border)]">
+              {backupsLoading ? <div className="flex min-h-24 items-center justify-center gap-2 text-[12px] text-[var(--muted-foreground)]"><LoaderCircle size={16} className="animate-spin" />正在读取备份</div> : backups.length ? backups.map((backup) => <div key={backup.name} className="flex min-h-[60px] items-center gap-3 border-b border-[var(--border)] px-4 py-2.5 last:border-b-0"><span className="grid size-8 shrink-0 place-items-center rounded-[7px] bg-[var(--success-soft)] text-[var(--success)]"><ShieldCheck size={17} /></span><div className="min-w-0 flex-1"><strong className="block truncate text-[12px]" title={backup.name}>{backup.name}</strong><span className="mt-1 block text-[11px] text-[var(--muted-foreground)]">{backupTime(backup.createdAt)} · {backupSize(backup.size)}</span></div><button type="button" className="btn icon-btn size-9" onClick={() => void verifyLocalBackup(backup)} disabled={verifyingBackup !== null} aria-label={`校验 ${backup.name}`} title="校验备份">{verifyingBackup === backup.name ? <LoaderCircle size={15} className="animate-spin" /> : <FileCheck2 size={15} />}</button><a className="btn icon-btn size-9" href={`/api/backups?name=${encodeURIComponent(backup.name)}`} aria-label={`下载 ${backup.name}`} title="下载备份"><Download size={15} /></a><button type="button" className="btn icon-btn size-9 text-[var(--danger)]" onClick={() => setDeleteBackup(backup)} aria-label={`删除 ${backup.name}`} title="删除备份"><Trash2 size={15} /></button></div>) : <div className="flex min-h-24 flex-col items-center justify-center gap-1 text-center"><strong className="text-[12px]">还没有服务器备份</strong><span className="text-[11px] text-[var(--muted-foreground)]">点击“创建备份”保存第一份</span></div>}
+            </div>
+            <p className="mt-3 text-[11px] leading-5 text-[var(--muted-foreground)]">备份保存在服务器持久目录。建议定期下载到其他设备，避免服务器磁盘故障时同时丢失数据与备份。</p>
+          </div>
+        </section>
+        <aside className="panel p-5">
+          <h3 className="section-heading">新服务器恢复</h3>
+          <ol className="mt-4 space-y-3 text-[12px] leading-5 text-[var(--muted-foreground)]"><li><strong className="mr-2 text-[var(--foreground)]">1.</strong>在新服务器完成一键安装</li><li><strong className="mr-2 text-[var(--foreground)]">2.</strong>将原服务器的 <code>ENCRYPTION_KEY</code> 写入环境配置</li><li><strong className="mr-2 text-[var(--foreground)]">3.</strong>打开本页并选择原始 JSON 备份</li><li><strong className="mr-2 text-[var(--foreground)]">4.</strong>核对文件名后确认覆盖恢复</li></ol>
+          <div className="mt-4 rounded-[7px] bg-[var(--surface-subtle)] p-3 text-[11px] leading-5 text-[var(--muted-foreground)]">恢复前会校验文件版本、数据结构、管理员账号和加密密钥。校验失败不会写入数据。</div>
+          {editable ? <button className="btn mt-5 w-full" type="button" onClick={() => fileInput.current?.click()}><Upload size={15} />选择本地备份</button> : <p className="mt-4 text-[12px] text-[var(--muted-foreground)]">仅管理员可以恢复备份。</p>}
+          <input ref={fileInput} className="sr-only" type="file" accept="application/json,.json" onChange={(event) => setRestoreFile(event.target.files?.[0] || null)} />
+        </aside>
+      </div>
       <section className="panel overflow-hidden">
-        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[var(--border)] p-5"><div><div className="mb-2 flex items-center gap-2"><Archive size={19} className="text-[var(--accent)]" /><h2 className="section-heading">完整数据备份</h2></div><p className="max-w-[700px] text-[12px] leading-6 text-[var(--muted-foreground)]">包含平台、合租账号、车友、续费、管理员、操作日志与系统设置。平台密码保持加密、登录密码保持哈希状态。</p></div>{editable && <div className="flex gap-2"><button type="button" className="btn icon-btn" onClick={() => void loadBackups()} disabled={backupsLoading || creatingBackup} aria-label="刷新备份列表" title="刷新"><RefreshCw size={16} className={backupsLoading ? "animate-spin" : ""} /></button><button type="button" className="btn btn-primary" onClick={createLocalBackup} disabled={creatingBackup}>{creatingBackup ? <LoaderCircle size={16} className="animate-spin" /> : <Archive size={16} />}{creatingBackup ? "正在创建" : "创建备份"}</button></div>}</div>
-        <div className="px-5 pb-5 pt-4"><div className="mb-2 flex items-center justify-between"><strong className="text-[13px]">本地备份</strong><span className="text-[11px] text-[var(--muted-foreground)]">显示最近 10 份</span></div><div className="overflow-hidden rounded-[8px] border border-[var(--border)]">
-          {backupsLoading ? <div className="flex min-h-24 items-center justify-center gap-2 text-[12px] text-[var(--muted-foreground)]"><LoaderCircle size={16} className="animate-spin" />正在读取备份</div> : backups.length ? backups.map((backup) => <div key={backup.name} className="flex min-h-[58px] items-center gap-3 border-b border-[var(--border)] px-4 py-2.5 last:border-b-0"><span className="grid size-8 shrink-0 place-items-center rounded-[7px] bg-[var(--success-soft)] text-[var(--success)]"><ShieldCheck size={17} /></span><div className="min-w-0 flex-1"><strong className="block truncate text-[12px]" title={backup.name}>{backup.name}</strong><span className="mt-1 block text-[11px] text-[var(--muted-foreground)]">{backupTime(backup.createdAt)} · {backupSize(backup.size)}</span></div><a className="btn icon-btn size-9" href={`/api/backups?name=${encodeURIComponent(backup.name)}`} aria-label={`下载 ${backup.name}`} title="下载备份"><Download size={15} /></a><button type="button" className="btn icon-btn size-9 text-[var(--danger)]" onClick={() => setDeleteBackup(backup)} aria-label={`删除 ${backup.name}`} title="删除备份"><Trash2 size={15} /></button></div>) : <div className="flex min-h-24 flex-col items-center justify-center gap-1 text-center"><strong className="text-[12px]">还没有服务器备份</strong><span className="text-[11px] text-[var(--muted-foreground)]">点击“创建备份”保存第一份</span></div>}
-        </div><p className="mt-3 text-[11px] leading-5 text-[var(--muted-foreground)]">文件保存在服务器持久目录中。建议定期下载到其他设备，避免服务器磁盘故障时同时丢失数据与备份。</p></div>
+        <div className="border-b border-[var(--border)] px-5 py-3.5"><h3 className="section-heading">备份与安全</h3><p className="mt-1 text-[11px] text-[var(--muted-foreground)]">了解备份保留、迁移和恢复要求</p></div>
+        <div className="grid divide-y divide-[var(--border)] sm:grid-cols-3 sm:divide-x sm:divide-y-0"><div className="p-4"><span className="text-[11px] text-[var(--muted-foreground)]">最近备份</span><strong className="mt-1 block text-[13px] tabular">{backups[0] ? backupTime(backups[0].createdAt) : "尚未创建"}</strong></div><div className="p-4"><span className="text-[11px] text-[var(--muted-foreground)]">当前列表</span><strong className="mt-1 block text-[13px]">{backups.length} 份（最多显示 10 份）</strong></div><div className="p-4"><span className="text-[11px] text-[var(--muted-foreground)]">恢复要求</span><strong className="mt-1 block text-[13px]">匹配原 ENCRYPTION_KEY</strong></div></div>
       </section>
-      <aside className="panel p-5"><h2 className="section-heading">新服务器恢复</h2><ol className="mt-4 space-y-3 text-[12px] leading-5 text-[var(--muted-foreground)]"><li><strong className="mr-2 text-[var(--foreground)]">1.</strong>先完成新服务器的一键安装</li><li><strong className="mr-2 text-[var(--foreground)]">2.</strong>确认加密密钥与原服务器一致</li><li><strong className="mr-2 text-[var(--foreground)]">3.</strong>上传原始 JSON 备份文件</li><li><strong className="mr-2 text-[var(--foreground)]">4.</strong>核对文件名后确认覆盖恢复</li></ol><div className="mt-4 rounded-[7px] bg-[var(--surface-subtle)] p-3 text-[11px] leading-5 text-[var(--muted-foreground)]">恢复会覆盖全部业务数据并使当前登录会话失效。校验失败时不会写入数据。</div>{editable ? <button className="btn mt-5 w-full" type="button" onClick={() => fileInput.current?.click()}><Upload size={15} />选择备份文件</button> : <p className="mt-4 text-[12px] text-[var(--muted-foreground)]">仅管理员可以恢复备份。</p>}<input ref={fileInput} className="sr-only" type="file" accept="application/json,.json" onChange={(event) => setRestoreFile(event.target.files?.[0] || null)} /></aside>
-    </div><section className="panel flex items-start gap-3 p-4"><CircleAlert size={20} className="mt-0.5 shrink-0 text-[var(--warning)]" /><div><strong className="block text-[13px]">恢复前请先创建并下载当前数据备份</strong><p className="mt-1 text-[12px] leading-5 text-[var(--muted-foreground)]">新服务器必须使用相同的 <code className="rounded bg-[var(--surface-subtle)] px-1.5 py-0.5">ENCRYPTION_KEY</code>，否则原平台密码无法解密。</p></div></section>
+      <section className="panel flex items-start gap-3 p-4"><CircleAlert size={20} className="mt-0.5 shrink-0 text-[var(--warning)]" /><div><strong className="block text-[13px]">恢复前请先创建并下载当前备份</strong><p className="mt-1 text-[12px] leading-5 text-[var(--muted-foreground)]">恢复会覆盖全部业务数据并使当前登录会话失效；操作完成后需重新登录。</p></div></section>
       <ConfirmDialog open={Boolean(deleteBackup)} title="删除这份备份？" description={`${deleteBackup?.name || "该备份"} 将从服务器永久删除。已下载到其他设备的副本不受影响。`} confirmLabel="确认删除" pending={deletingBackup} onClose={() => { if (!deletingBackup) setDeleteBackup(null); }} onConfirm={removeLocalBackup} />
       <ConfirmDialog open={Boolean(restoreFile)} title="恢复整个系统？" description={`将用 ${restoreFile?.name || "备份文件"} 覆盖当前所有数据。该操作无法在页面内撤销。`} confirmLabel="确认恢复" pending={restoring} onClose={() => { if (!restoring) clearRestore(); }} onConfirm={restore} />
     </>}

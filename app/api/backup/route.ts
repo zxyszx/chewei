@@ -1,26 +1,11 @@
-import { z } from "zod";
 import { cookies } from "next/headers";
 import { Prisma } from "@/generated/prisma/client";
 import { requireAdmin } from "@/lib/auth";
 import { backupFilename, createBackupBody } from "@/lib/backup-data";
-import { encryptionKeyFingerprint } from "@/lib/crypto";
+import { BackupValidationError, parseAndValidateBackup } from "@/lib/backup-schema";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
-
-const date = z.string().datetime();
-const status = z.enum(["ACTIVE", "PAUSED", "ABNORMAL", "EXITED"]);
-const backupSchema = z.object({
-  version: z.literal(3),
-  encryptionKeyFingerprint: z.string().length(16),
-  platforms: z.array(z.object({ id: z.string(), name: z.string(), slug: z.string(), icon: z.string().nullable(), defaultCapacity: z.number().int(), status, createdAt: date, updatedAt: date })),
-  slots: z.array(z.object({ id: z.string(), platformId: z.string(), slotNumber: z.number().int(), accountEmail: z.string(), encryptedPassword: z.string(), cardLast4: z.string().nullable(), billingDay: z.number().int(), capacity: z.number().int(), status, note: z.string().nullable(), createdAt: date, updatedAt: date })),
-  members: z.array(z.object({ id: z.string(), slotId: z.string(), nickname: z.string(), contact: z.string(), contactType: z.string(), startDate: date, expireDate: date, status, seatNumber: z.number().int().nullable(), note: z.string().nullable(), createdAt: date, updatedAt: date })),
-  renewals: z.array(z.object({ id: z.string(), memberId: z.string(), slotId: z.string(), oldExpireDate: date, newExpireDate: date, months: z.number().int().nullable(), amount: z.string(), paymentMethod: z.enum(["WECHAT", "ALIPAY", "CRYPTO", "CARD", "CASH", "OTHER"]), note: z.string().nullable(), operatorId: z.string(), createdAt: date })),
-  users: z.array(z.object({ id: z.string(), username: z.string(), passwordHash: z.string(), role: z.enum(["ADMIN", "OPERATOR"]), status, createdAt: date, updatedAt: date })),
-  operationLogs: z.array(z.object({ id: z.string(), userId: z.string(), action: z.string(), resourceType: z.string(), resourceId: z.string().nullable(), detail: z.unknown().nullable(), ip: z.string().nullable(), createdAt: date })),
-  settings: z.array(z.object({ key: z.string(), value: z.unknown(), updatedAt: date })),
-});
 
 function assertSameOrigin(request: Request) {
   const origin = request.headers.get("origin");
@@ -44,11 +29,7 @@ export async function POST(request: Request) {
     const file = form.get("backup");
     if (!(file instanceof File)) return Response.json({ error: "请选择备份文件" }, { status: 400 });
     if (file.size > 25 * 1024 * 1024) return Response.json({ error: "备份文件不能超过 25 MB" }, { status: 413 });
-    const parsed = backupSchema.safeParse(JSON.parse(await file.text()));
-    if (!parsed.success) return Response.json({ error: "备份格式不正确，仅支持当前 v3 备份" }, { status: 400 });
-    const data = parsed.data;
-    if (data.encryptionKeyFingerprint !== encryptionKeyFingerprint()) return Response.json({ error: "备份与当前 ENCRYPTION_KEY 不匹配，恢复将导致账号密码无法解密" }, { status: 409 });
-    if (!data.users.some((user) => user.role === "ADMIN" && user.status === "ACTIVE")) return Response.json({ error: "备份中没有可用的管理员账号" }, { status: 400 });
+    const data = parseAndValidateBackup(await file.text());
 
     const toDate = (value: string) => new Date(value);
     await prisma.$transaction(async (tx) => {
@@ -64,7 +45,7 @@ export async function POST(request: Request) {
     (await cookies()).delete("parking_session");
     return Response.json({ ok: true });
   } catch (error) {
-    const message = error instanceof SyntaxError ? "备份不是有效的 JSON 文件" : error instanceof Error && error.message === "请求来源无效" ? error.message : "恢复失败，事务已回滚，原数据未改变";
-    return Response.json({ error: message }, { status: 400 });
+    const message = error instanceof SyntaxError ? "备份不是有效的 JSON 文件" : error instanceof BackupValidationError || error instanceof Error && error.message === "请求来源无效" ? error.message : "恢复失败，事务已回滚，原数据未改变";
+    return Response.json({ error: message }, { status: error instanceof BackupValidationError ? error.status : 400 });
   }
 }

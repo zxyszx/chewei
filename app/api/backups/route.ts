@@ -1,6 +1,7 @@
 import { mkdir, readdir, readFile, stat, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { backupDirectory, backupFilename, createBackupBody, validBackupFilename } from "@/lib/backup-data";
+import { BackupValidationError, parseAndValidateBackup } from "@/lib/backup-schema";
 import { requireAdmin } from "@/lib/auth";
 
 export const runtime = "nodejs";
@@ -31,13 +32,19 @@ async function listBackups() {
 
 export async function GET(request: Request) {
   await requireAdmin();
-  const name = new URL(request.url).searchParams.get("name");
+  const searchParams = new URL(request.url).searchParams;
+  const name = searchParams.get("name");
   if (!name) return Response.json({ backups: await listBackups() });
   try {
     const body = await readFile(await backupPath(name));
+    if (searchParams.get("verify") === "1") {
+      const data = parseAndValidateBackup(body.toString("utf8"));
+      return Response.json({ ok: true, version: data.version, exportedAt: data.exportedAt });
+    }
     return new Response(body, { headers: { "content-type": "application/json; charset=utf-8", "content-disposition": `attachment; filename="${name}"`, "cache-control": "private, no-store" } });
-  } catch {
-    return Response.json({ error: "备份文件不存在" }, { status: 404 });
+  } catch (error) {
+    const verifying = searchParams.get("verify") === "1";
+    return Response.json({ error: verifying && error instanceof Error ? error.message : "备份文件不存在" }, { status: verifying && error instanceof BackupValidationError ? error.status : verifying ? 400 : 404 });
   }
 }
 

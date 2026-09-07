@@ -12,7 +12,7 @@ const tabs = [
   { id: "reminders", label: "提醒设置", description: "到期时间与提醒规则", icon: BellRing },
   { id: "platforms", label: "平台管理", description: "平台、图标与默认席位", icon: LayoutGrid },
   { id: "users", label: "管理员", description: "账号、权限与密码", icon: Users },
-  { id: "backup", label: "数据备份", description: "下载备份与整站恢复", icon: Database },
+  { id: "backup", label: "备份与恢复", description: "创建、校验与整站恢复", icon: Database },
   { id: "update", label: "系统更新", description: "检查并安装仓库更新", icon: RefreshCw },
 ] as const;
 
