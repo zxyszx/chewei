@@ -33,7 +33,7 @@ function closeOpenActionMenus() {
 }
 
 function toneForSlot(status: string) {
-  if (status === "满") return "success" as const;
+  if (status === "满") return "neutral" as const;
   if (status === "空闲") return "neutral" as const;
   if (status === "暂停" || status === "异常") return "danger" as const;
   return "urgent" as const;
@@ -104,14 +104,14 @@ function mapMembersToSeats(capacity: number, members: MemberItem[]) {
 
 const SeatButtons = memo(function SeatButtons({ slot, members, onMember, onEmpty }: { slot: SlotItem; members: MemberItem[]; onMember: (member: MemberItem) => void; onEmpty: (seatNumber: number) => void }) {
   const seats = mapMembersToSeats(slot.capacity, members);
-  return <div className="seat-occupancy min-w-max" aria-label={`${slot.platform.name} 合租车位 #${slot.slotNumber}，已使用 ${members.length}/${slot.capacity} 个席位`}><div className="mb-1.5 flex items-center gap-2"><strong className="text-[11px] tabular">{members.length} / {slot.capacity}</strong><div className="w-20"><ProgressBar value={slot.capacity ? members.length / slot.capacity * 100 : 0} label={`${slot.platform.name} #${slot.slotNumber} 席位占用`} /></div></div><div className="flex items-center gap-1.5">
+  return <div className="seat-occupancy min-w-max" aria-label={`${slot.platform.name} 合租车位 #${slot.slotNumber}，已使用 ${members.length}/${slot.capacity} 个席位`}><div className="mb-1 flex items-center gap-2"><strong className="text-[11px] tabular">{members.length} / {slot.capacity}</strong><div className="w-[72px]"><ProgressBar value={slot.capacity ? members.length / slot.capacity * 100 : 0} label={`${slot.platform.name} #${slot.slotNumber} 席位占用`} /></div></div><div className="flex items-center gap-1">
     {Array.from({ length: slot.capacity }, (_, index) => {
       const seatNumber = index + 1;
       const member = seats.get(seatNumber);
-      if (!member) return <button key={`empty-${seatNumber}`} type="button" className="seat-button seat-button-empty" title={`车位 ${seatNumber}\n当前空闲\n点击添加车友`} aria-label={`车位 ${seatNumber}，当前空闲，点击添加车友`} onClick={(event) => { event.stopPropagation(); onEmpty(seatNumber); }}><Plus size={14} /><span className="seat-button-index" aria-hidden>{seatNumber}</span></button>;
+      if (!member) return <button key={`empty-${seatNumber}`} type="button" className="seat-button seat-button-empty" title={`车位 ${seatNumber}\n当前空闲\n点击添加车友`} aria-label={`车位 ${seatNumber}，当前空闲，点击添加车友`} onClick={(event) => { event.stopPropagation(); onEmpty(seatNumber); }}><Plus size={13} /></button>;
       const expiry = expiryLabel(new Date(member.expireDate));
       const tone = expiry.days < 0 ? "seat-button-danger" : expiry.days <= 7 ? "seat-button-warning" : "seat-button-full";
-      return <button key={member.id} type="button" className={cn("seat-button", tone)} title={`车位 ${seatNumber}\n${member.nickname}\n到期：${format(new Date(member.expireDate), "yyyy.MM.dd")}\n${expiry.text}`} aria-label={`车位 ${seatNumber}，${member.nickname}，${expiry.text}，点击编辑车友`} onClick={(event) => { event.stopPropagation(); onMember(member); }}>{member.nickname.slice(0, 1).toUpperCase()}<span className="seat-button-index" aria-hidden>{seatNumber}</span></button>;
+      return <button key={member.id} type="button" className={cn("seat-button", tone)} title={`车位 ${seatNumber}\n${member.nickname}\n到期：${format(new Date(member.expireDate), "yyyy.MM.dd")}\n${expiry.text}`} aria-label={`车位 ${seatNumber}，${member.nickname}，${expiry.text}，点击编辑车友`} onClick={(event) => { event.stopPropagation(); onMember(member); }}>{member.nickname.slice(0, 1).toUpperCase()}</button>;
     })}
   </div></div>;
 }, (previous, next) => previous.slot === next.slot && previous.members === next.members);

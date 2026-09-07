@@ -44,9 +44,9 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
     content = <SystemMaintenance editable={admin} view="update" />;
   }
 
-  return <div className="mx-auto max-w-[1500px] space-y-4"><PageHeader title="系统设置" description={admin ? "管理提醒、平台、管理员与数据维护" : "当前账号仅可查看设置"} />
-    <div className="grid items-start gap-4 lg:grid-cols-[250px_minmax(0,1fr)]">
-      <aside className="panel p-2 lg:sticky lg:top-[72px]">
+  return <div className="mx-auto max-w-[1200px] space-y-4"><PageHeader title="系统设置" description={admin ? "管理提醒、平台、管理员与数据维护" : "当前账号仅可查看设置"} />
+    <div className="grid items-start gap-4 lg:grid-cols-[180px_minmax(0,1fr)]">
+      <aside className="panel p-2 lg:sticky lg:top-[64px]">
         <nav className="settings-sidebar" aria-label="设置分类">
           {tabs.map((tab) => {
             const Icon = tab.icon;
@@ -55,7 +55,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
           })}
         </nav>
       </aside>
-      <div className="min-w-0">{content}</div>
+      <div className="settings-content min-w-0">{content}</div>
     </div>
   </div>;
 }

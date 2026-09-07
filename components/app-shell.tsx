@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   Bell, ChartNoAxesCombined, ChevronDown, CreditCard, Database,
   History, House, LoaderCircle, LogOut, Menu, MoreHorizontal,
-  PanelLeft, ParkingCircle, Plus, RefreshCw, Settings, UsersRound, X,
+  PanelLeft, ParkingCircle, Plus, Settings, UsersRound, X,
 } from "lucide-react";
 import { logoutAction } from "@/app/actions";
 import { GlobalSearch } from "@/components/global-search";
@@ -78,17 +78,15 @@ function QuickCreate() {
   }, []);
   const done = () => root.current?.removeAttribute("open");
   const items = [
-    ["/slots?create=1", "新增车位", ParkingCircle, "blue"],
-    ["/slots?status=空闲", "添加车友", UsersRound, "green"],
-    ["/members", "办理续费", CreditCard, "orange"],
-    ["/settings?tab=backup", "数据备份", Database, "violet"],
+    ["/slots?create=1", "新增车位", ParkingCircle],
+    ["/slots?status=空闲", "添加车友", UsersRound],
+    ["/members", "办理续费", CreditCard],
+    ["/settings?tab=backup", "数据备份", Database],
   ] as const;
   return <details ref={root} name="chewei-popover" className="quick-create relative">
     <summary className="quick-create-trigger" aria-label="打开快捷新建"><Plus size={18} /><span className="quick-create-label">新建</span><ChevronDown className="quick-create-chevron" size={14} /></summary>
     <div className="quick-create-popover">
-      <div className="quick-create-heading"><strong>快捷新建</strong><span>选择要处理的业务</span></div>
-      <div className="quick-create-grid">{items.map(([href, label, Icon, tone]) => <Link key={href} href={href} onClick={done} className="quick-create-item"><span className={`quick-create-icon quick-create-${tone}`}><Icon size={21} /></span><span>{label}</span></Link>)}</div>
-      <div className="quick-create-footer"><Link href="/settings?tab=update" onClick={done}><RefreshCw size={14} />检查系统更新</Link></div>
+      {items.map(([href, label, Icon]) => <Link key={href} href={href} onClick={done} className="quick-create-item"><Icon size={16} /><span>{label}</span></Link>)}
     </div>
   </details>;
 }
@@ -133,7 +131,7 @@ export function AppShell({ children, reminderCount, username, role }: { children
         <div className="workspace-search-slot"><GlobalSearch /></div>
         <div className="workspace-actions"><ThemeToggle className="header-tool desktop-only" /><Link href="/reminders" className="header-tool relative" aria-label="查看提醒"><Bell size={19} />{reminderCount > 0 && <span className="header-notification-dot" />}</Link><div className="mobile-only"><AccountMenu username={username} role={role} compact /></div></div>
       </header>
-      <main id="main-content" className="app-main min-h-[calc(100dvh-64px)]">{children}</main>
+      <main id="main-content" className="app-main min-h-[calc(100dvh-56px)]">{children}</main>
     </div>
     <MobileBottomNav reminderCount={reminderCount} />
     {mobileNav && <div className="fixed inset-0 z-[90] bg-black/45" onClick={() => setMobileNav(false)}><div role="dialog" aria-modal="true" aria-label="移动导航" className="h-full w-[min(328px,88vw)]" onClick={(event) => event.stopPropagation()}><Sidebar reminderCount={reminderCount} username={username} role={role} close={() => setMobileNav(false)} /></div></div>}
