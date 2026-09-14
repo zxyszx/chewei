@@ -235,9 +235,10 @@ export function SystemMaintenance({ editable, view = "all" }: { editable: boolea
   const short = (value?: string) => value && value !== "unknown" ? value.slice(0, 7) : "未知";
   const updateState = updateInfo?.status?.state;
   const updateRunning = updateState === "queued" || updateState === "updating";
+  const updateFailed = updateState === "failed";
   const upToDate = Boolean(updateInfo?.enabled && updateInfo.latest && !updateInfo.updateAvailable && !updateRunning);
-  const statusLabel = checking ? "正在检查" : updateRunning ? "正在更新" : updateInfo?.updateAvailable ? "发现新版本" : upToDate ? "已是最新版本" : "等待检查";
-  const statusTone = updateInfo?.updateAvailable ? "badge-warning" : upToDate ? "badge-success" : "badge-neutral";
+  const statusLabel = checking ? "正在检查" : updateRunning ? "正在更新" : updateFailed ? "更新失败" : updateInfo?.updateAvailable ? "发现新版本" : upToDate ? "已是最新版本" : "等待检查";
+  const statusTone = updateFailed ? "badge-danger" : updateInfo?.updateAvailable ? "badge-warning" : upToDate ? "badge-success" : "badge-neutral";
   return <div className={view === "all" ? "grid gap-4 md:grid-cols-2" : "space-y-4"}>
     {view !== "backup" && <section className="panel p-5">
       <div className="mb-4 flex items-start justify-between gap-3"><div className="flex items-center gap-2"><RefreshCw size={18} className="text-[var(--accent)]" /><h2 className="font-semibold">系统更新</h2></div><span className={`badge ${statusTone}`}>{checking || updateRunning ? <LoaderCircle size={13} className="animate-spin" /> : upToDate ? <CheckCircle2 size={13} /> : <CircleAlert size={13} />}{statusLabel}</span></div>
