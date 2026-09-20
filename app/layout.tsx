@@ -5,10 +5,10 @@ import { ServiceWorkerRegistration } from "@/components/service-worker-registrat
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: { default: "Chewei", template: "%s · Chewei" },
+  title: { default: "妙妙屋", template: "%s · 妙妙屋" },
   description: "流媒体合租车位、成员席位和续费管理后台",
-  applicationName: "Chewei",
-  appleWebApp: { capable: true, statusBarStyle: "default", title: "Chewei" },
+  applicationName: "妙妙屋",
+  appleWebApp: { capable: true, statusBarStyle: "default", title: "妙妙屋" },
   icons: { icon: "/icons/app-icon-192.png", apple: "/icons/app-icon-192.png" },
 };
 
