@@ -409,6 +409,8 @@ input[name="slot-filter-query"]:focus-visible { outline: none; }
 .credential-icon-button { display: grid; width: 28px; height: 28px; flex: 0 0 28px; place-items: center; border-radius: 5px; color: var(--muted-foreground); transition: background 140ms, color 140ms, opacity 140ms; }
 .credential-icon-button:hover:not(:disabled) { background: var(--surface-subtle); color: var(--accent); }
 .credential-icon-button:disabled { cursor: not-allowed; opacity: .4; }
+.credential-copy-all { background: var(--accent-soft); color: var(--accent); }
+.credential-copy-all:hover:not(:disabled) { background: var(--accent); color: white; }
 .drawer-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-bottom: 1px solid var(--border); padding: 0 12px; background: var(--surface); }
 .drawer-tab { position: relative; display: inline-flex; min-height: 44px; align-items: center; justify-content: center; gap: 6px; color: var(--muted-foreground); font-size: 12px; font-weight: 600; transition: color 140ms, background 140ms; }
 .drawer-tab:hover { color: var(--foreground); background: var(--surface-subtle); }

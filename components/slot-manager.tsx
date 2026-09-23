@@ -2,17 +2,18 @@
 
 import { addDays, addMonths, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameDay, isSameMonth, startOfMonth, startOfWeek, subMonths } from "date-fns";
 import { zhCN } from "date-fns/locale";
-import { CalendarDays, ChevronLeft, ChevronRight, Columns3, Copy, Eye, EyeOff, KeyRound, Link2, MoreHorizontal, PanelRightOpen, Pencil, Plus, RefreshCw, Search, Table2, Trash2, UserPlus, UserRoundX, X } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, ClipboardCopy, Columns3, Copy, Eye, EyeOff, KeyRound, Link2, MoreHorizontal, PanelRightOpen, Pencil, Plus, RefreshCw, Search, Table2, Trash2, UserPlus, UserRoundX, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { addMemberAction, copyVerificationUrlAction, createSlotAction, deleteMemberAction, deleteSlotAction, exitMemberAction, loadSlotRenewalsAction, moveMemberFormAction, renewMemberAction, revealPasswordAction, updateMemberAction, updateSlotAction, type SlotRenewalRecord } from "@/app/actions";
+import { addMemberAction, copyCredentialBundleAction, copyVerificationUrlAction, createSlotAction, deleteMemberAction, deleteSlotAction, exitMemberAction, loadSlotRenewalsAction, moveMemberFormAction, renewMemberAction, revealPasswordAction, updateMemberAction, updateSlotAction, type SlotRenewalRecord } from "@/app/actions";
 import { ActionForm } from "@/components/action-form";
 import { ConfirmDialog, FormDialog } from "@/components/form-dialog";
 import { cleanContactValue, ContactIcon, ContactValue, contactTypeOptions, normalizeContactType, type ContactType } from "@/components/contact-method";
 import { PasswordCell } from "@/components/password-cell";
 import { PlatformIcon } from "@/components/platform-icon";
 import { Badge, ProgressBar, SubmitButton } from "@/components/ui";
+import { formatCredentialBundle } from "@/lib/credential-copy";
 import { expiryLabel, slotStatus } from "@/lib/dates";
 import { currentPaymentMethods, paymentMethodLabels } from "@/lib/payment-methods";
 import { cn, publicId } from "@/lib/utils";
@@ -309,6 +310,15 @@ function SlotDrawer({ slot, focusedMemberId, close, addMember, editSlot, editMem
     if (!result.ok || !result.data?.verificationUrl) { toast.error(result.message); return; }
     await copyText(result.data.verificationUrl, "验证码链接已复制，此操作已记录");
   });
+  const copyAllCredentials = () => startTransition(async () => {
+    const result = await copyCredentialBundleAction(slot.id);
+    const accountEmail = result.data?.accountEmail;
+    const copiedPassword = result.data?.password;
+    const verificationUrl = result.data?.verificationUrl;
+    if (!result.ok || !accountEmail || !copiedPassword || !verificationUrl) { toast.error(result.message); return; }
+    await copyText(formatCredentialBundle({ accountEmail, password: copiedPassword, verificationUrl }), "账号、密码和链接已复制，此操作已记录");
+    setPassword(copiedPassword);
+  });
   const confirmAction = () => startTransition(async () => {
     if (!confirmation) return;
     const result = confirmation.kind === "delete-slot" ? await deleteSlotAction(slot.id) : confirmation.kind === "delete-member" ? await deleteMemberAction(confirmation.member.id) : await exitMemberAction(confirmation.member.id);
@@ -349,7 +359,7 @@ function SlotDrawer({ slot, focusedMemberId, close, addMember, editSlot, editMem
     <div className="border-b border-[var(--border)] px-5 py-4"><div className="flex items-center gap-3"><PlatformIcon slug={slot.platform.slug} name={slot.platform.name} icon={slot.platform.icon} size={24} className="border border-[var(--border)]" /><div className="min-w-0 flex-1"><div className="flex items-center gap-2"><strong className="truncate text-[16px]">{slot.platform.name}</strong><Badge tone={toneForSlot(status)}>{status}</Badge></div><p className="mt-0.5 truncate text-[12px] text-[var(--muted-foreground)]">{slot.accountEmail}</p></div><span className="text-[13px] tabular text-[var(--muted-foreground)]">{activeMembers.length}/{slot.capacity}</span></div></div>
     <div className="drawer-tabs" role="tablist" aria-label="账号详情分类">{tabs.map((tab) => <button key={tab.id} type="button" role="tab" aria-selected={activeTab === tab.id} className={cn("drawer-tab", activeTab === tab.id && "drawer-tab-active")} onClick={() => openTab(tab.id)}>{tab.label}{tab.count && <span>{tab.count}</span>}</button>)}</div>
     <div className="min-h-0 flex-1 overflow-y-auto">
-      {activeTab === "account" && <section role="tabpanel" className="px-5 py-5"><div className="mb-4 flex items-center justify-between"><div><h3 className="font-semibold">账号资料</h3><p className="mt-0.5 text-[11px] text-[var(--muted-foreground)]">密码显示和复制行为会写入日志</p></div><button className="btn min-h-8 px-2.5 text-[12px]" onClick={editSlot}><Pencil size={14} />编辑</button></div>
+      {activeTab === "account" && <section role="tabpanel" className="px-5 py-5"><div className="mb-4 flex items-center justify-between gap-3"><div><h3 className="font-semibold">账号资料</h3><p className="mt-0.5 text-[11px] text-[var(--muted-foreground)]">密码显示和复制行为会写入日志</p></div><div className="flex items-center gap-2"><button type="button" className="btn min-h-8 px-2.5 text-[12px] text-[var(--accent)]" onClick={copyAllCredentials} disabled={pending || !slot.hasVerificationUrl} title={slot.hasVerificationUrl ? "复制账号、密码和验证码链接" : "请先设置验证码链接"}><ClipboardCopy size={14} />复制全部</button><button className="btn min-h-8 px-2.5 text-[12px]" onClick={editSlot}><Pencil size={14} />编辑</button></div></div>
         <dl className="grid grid-cols-[112px_minmax(0,1fr)] gap-y-4 rounded-[6px] border border-[var(--border)] p-4 text-[13px]"><dt className="text-[var(--muted-foreground)]">登录账号</dt><dd><AccountCopyButton account={slot.accountEmail} /></dd><dt className="text-[var(--muted-foreground)]">密码</dt><dd className="flex max-w-[230px] items-center gap-1"><button type="button" onClick={copyPassword} disabled={pending} className="group flex min-w-0 flex-1 items-center gap-1.5 rounded-[5px] px-1 py-1 text-left font-mono hover:bg-[var(--surface-subtle)]" aria-label="复制密码" title="点击复制密码"><span className="min-w-0 flex-1 truncate">{showPassword ? password : "••••••••••"}</span><Copy size={13} className="shrink-0 text-[var(--muted-foreground)] opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" /></button>{showPassword ? <button className="credential-icon-button" onClick={() => setShowPassword(false)} aria-label="隐藏密码" title="隐藏密码"><EyeOff size={15} /></button> : <button className="credential-icon-button" onClick={reveal} disabled={pending} aria-label="查看密码" title="查看密码"><Eye size={15} /></button>}</dd><dt className="text-[var(--muted-foreground)]">验证码链接</dt><dd><button type="button" className="inline-flex min-h-8 items-center gap-2 rounded-[5px] px-2 text-[var(--accent)] hover:bg-[var(--accent-soft)] disabled:cursor-not-allowed disabled:text-[var(--muted-foreground)] disabled:opacity-55" onClick={copyVerificationUrl} disabled={pending || !slot.hasVerificationUrl}><Link2 size={15} />{slot.hasVerificationUrl ? "复制链接" : "未设置"}</button></dd><dt className="text-[var(--muted-foreground)]">信用卡尾号</dt><dd>{slot.cardLast4 ? `•••• ${slot.cardLast4}` : "-"}</dd><dt className="text-[var(--muted-foreground)]">平台续费日</dt><dd>每月 {slot.billingDay} 日</dd><dt className="text-[var(--muted-foreground)]">席位容量</dt><dd>{slot.capacity} 个</dd><dt className="text-[var(--muted-foreground)]">备注</dt><dd className="whitespace-pre-wrap">{slot.note || "-"}</dd></dl>
       </section>}
       {activeTab === "members" && <section role="tabpanel" className="px-5 py-5"><div className="mb-3 flex items-center justify-between"><div><h3 className="font-semibold">车位 1–{slot.capacity}</h3><p className="mt-0.5 text-[11px] text-[var(--muted-foreground)]">位置顺序固定，点击空位即可添加车友</p></div><button className="btn min-h-8 px-2.5 text-[12px] text-[var(--accent)]" onClick={() => addMember()} disabled={activeMembers.length >= slot.capacity}><UserPlus size={14} />添加车友</button></div>

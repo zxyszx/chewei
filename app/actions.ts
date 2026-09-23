@@ -794,6 +794,39 @@ export async function copyVerificationUrlAction(
   };
 }
 
+export async function copyCredentialBundleAction(
+  slotId: string,
+): Promise<ActionState> {
+  const user = await requireUser();
+  const id = z.string().min(1).max(100).safeParse(slotId);
+  if (!id.success) return { ok: false, message: "合租车位参数无效" };
+  const slot = await prisma.parkingSlot.findUnique({
+    where: { id: slotId },
+    select: {
+      id: true,
+      accountEmail: true,
+      encryptedPassword: true,
+      encryptedVerificationUrl: true,
+    },
+  });
+  if (!slot) return { ok: false, message: "没有找到该合租车位" };
+  if (!slot.encryptedVerificationUrl) {
+    return { ok: false, message: "请先为该账号设置验证码链接" };
+  }
+  await log(user.id, "COPY_CREDENTIAL_BUNDLE", "parking_slot", slot.id, {
+    email: slot.accountEmail,
+  });
+  return {
+    ok: true,
+    message: "账号、密码和验证码链接已读取，此操作已记录",
+    data: {
+      accountEmail: slot.accountEmail,
+      password: decryptSecret(slot.encryptedPassword),
+      verificationUrl: decryptSecret(slot.encryptedVerificationUrl),
+    },
+  };
+}
+
 export async function updateRemindersAction(
   _state: ActionState,
   formData: FormData,

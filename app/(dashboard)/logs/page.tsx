@@ -7,7 +7,7 @@ import { Badge, PageHeader } from "@/components/ui";
 import { prisma } from "@/lib/prisma";
 
 export const metadata = { title: "操作日志" };
-const actionNames: Record<string, string> = { SEED_DATABASE: "初始化数据", CREATE_SLOT: "创建合租车位", UPDATE_SLOT: "编辑合租车位", DELETE_SLOT: "删除合租车位", ADD_MEMBER: "添加车友", UPDATE_MEMBER: "编辑车友", DELETE_MEMBER: "删除车友", EXIT_MEMBER: "车友退出", MOVE_MEMBER: "更换车位", RENEW_MEMBER: "续费", VIEW_PASSWORD: "查看密码", COPY_PASSWORD: "复制密码", COPY_VERIFICATION_URL: "复制验证码链接", UPDATE_SETTINGS: "修改设置", UPDATE_PLATFORM: "修改平台", CREATE_PLATFORM: "新增平台", DELETE_PLATFORM: "删除平台", CREATE_USER: "创建后台账号", UPDATE_USER: "修改后台账号" };
+const actionNames: Record<string, string> = { SEED_DATABASE: "初始化数据", CREATE_SLOT: "创建合租车位", UPDATE_SLOT: "编辑合租车位", DELETE_SLOT: "删除合租车位", ADD_MEMBER: "添加车友", UPDATE_MEMBER: "编辑车友", DELETE_MEMBER: "删除车友", EXIT_MEMBER: "车友退出", MOVE_MEMBER: "更换车位", RENEW_MEMBER: "续费", VIEW_PASSWORD: "查看密码", COPY_PASSWORD: "复制密码", COPY_CREDENTIAL_BUNDLE: "复制完整凭据", COPY_VERIFICATION_URL: "复制验证码链接", UPDATE_SETTINGS: "修改设置", UPDATE_PLATFORM: "修改平台", CREATE_PLATFORM: "新增平台", DELETE_PLATFORM: "删除平台", CREATE_USER: "创建后台账号", UPDATE_USER: "修改后台账号" };
 const detailNames: Record<string, string> = { email: "登录账号", nickname: "车友", slotNumber: "账号编号", slotId: "账号 ID", from: "原账号", to: "目标账号", seatNumber: "席位", oldDate: "原到期", newDate: "新到期", amount: "金额", status: "状态", verificationUrl: "验证码链接", defaultCapacity: "默认席位数", values: "提醒天数", name: "名称", slug: "标识", icon: "图标" };
 const resourceNames: Record<string, string> = { member: "车友", parking_slot: "合租车位", platform: "平台", renewal: "续费记录", user: "后台账号", setting: "系统设置", system: "系统" };
 
