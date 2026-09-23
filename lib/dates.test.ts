@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { configuredReminderDays, databaseDate, databaseToday, expiryLabel, slotStatus } from "./dates";
+import { configuredReminderDays, databaseDate, databaseToday, expiryLabel, nextMonthlyBillingDate, slotStatus } from "./dates";
 
 describe("database dates", () => {
   it("normalizes local calendar days to UTC-backed database dates", () => {
@@ -37,5 +37,19 @@ describe("expiryLabel", () => {
     expect(expiryLabel(new Date("2026-08-23T00:00:00+08:00"), now).tone).toBe("urgent");
     expect(expiryLabel(new Date("2026-08-27T00:00:00+08:00"), now).tone).toBe("warning");
     expect(expiryLabel(new Date("2026-09-19T00:00:00+08:00"), now).tone).toBe("notice");
+  });
+});
+
+describe("nextMonthlyBillingDate", () => {
+  it("keeps a billing day that is still ahead in the current month", () => {
+    expect(nextMonthlyBillingDate(27, new Date(2026, 8, 23, 18)).toISOString()).toBe("2026-09-27T00:00:00.000Z");
+  });
+
+  it("moves a passed billing day to the next month", () => {
+    expect(nextMonthlyBillingDate(4, new Date(2026, 8, 23, 18)).toISOString()).toBe("2026-10-04T00:00:00.000Z");
+  });
+
+  it("clamps billing days to the last calendar day of shorter months", () => {
+    expect(nextMonthlyBillingDate(31, new Date(2027, 1, 10, 18)).toISOString()).toBe("2027-02-28T00:00:00.000Z");
   });
 });

@@ -1,7 +1,6 @@
-import { addDays } from "date-fns";
 import { AppShell } from "@/components/app-shell";
 import { requireUser } from "@/lib/auth";
-import { configuredReminderDays, databaseToday } from "@/lib/dates";
+import { configuredReminderDays, databaseToday, dayDiff, nextMonthlyBillingDate } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -19,7 +18,8 @@ async function getReminderCount() {
   const reminderDays = configuredReminderDays(reminderSetting?.value);
   const reminderCutoff = Math.max(...reminderDays);
   const today = databaseToday();
-  const count = await prisma.member.count({ where: { status: "ACTIVE", expireDate: { lte: addDays(today, reminderCutoff) } } });
+  const slots = await prisma.parkingSlot.findMany({ select: { billingDay: true } });
+  const count = slots.filter((slot) => dayDiff(nextMonthlyBillingDate(slot.billingDay, today), today) <= reminderCutoff).length;
   globalForDashboard.parkingReminderCache = { expiresAt: Date.now() + REMINDER_CACHE_MS, count };
   return count;
 }

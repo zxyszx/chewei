@@ -30,6 +30,18 @@ export function expiryLabel(date: Date, now = new Date()) {
   return { text: `${days} 天`, tone: "success" as const, days };
 }
 
+export function nextMonthlyBillingDate(billingDay: number, now = new Date()) {
+  const today = databaseToday(now);
+  const candidateFor = (year: number, month: number) => {
+    const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+    return new Date(Date.UTC(year, month, Math.min(billingDay, lastDay)));
+  };
+  const year = today.getUTCFullYear();
+  const month = today.getUTCMonth();
+  const current = candidateFor(year, month);
+  return current >= today ? current : candidateFor(year, month + 1);
+}
+
 export function slotStatus(capacity: number, activeMembers: number, recordStatus = "ACTIVE") {
   if (recordStatus === "PAUSED") return "暂停";
   if (recordStatus === "ABNORMAL") return "异常";
