@@ -406,6 +406,9 @@ input[name="slot-filter-query"]:focus-visible { outline: none; }
   background: transparent; color: var(--muted-foreground); transition: background 140ms, color 140ms;
 }
 .row-action-trigger:hover, .action-menu[open] .row-action-trigger { background: var(--surface-subtle); color: var(--foreground); }
+.credential-icon-button { display: grid; width: 28px; height: 28px; flex: 0 0 28px; place-items: center; border-radius: 5px; color: var(--muted-foreground); transition: background 140ms, color 140ms, opacity 140ms; }
+.credential-icon-button:hover:not(:disabled) { background: var(--surface-subtle); color: var(--accent); }
+.credential-icon-button:disabled { cursor: not-allowed; opacity: .4; }
 .drawer-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-bottom: 1px solid var(--border); padding: 0 12px; background: var(--surface); }
 .drawer-tab { position: relative; display: inline-flex; min-height: 44px; align-items: center; justify-content: center; gap: 6px; color: var(--muted-foreground); font-size: 12px; font-weight: 600; transition: color 140ms, background 140ms; }
 .drawer-tab:hover { color: var(--foreground); background: var(--surface-subtle); }
@@ -510,6 +513,10 @@ input[name="slot-filter-query"]:focus-visible { outline: none; }
   .slot-mobile-row { border-bottom: 1px solid var(--border); background: var(--surface); }
   .slot-mobile-main { display: flex; width: 100%; min-height: 58px; align-items: center; gap: 10px; padding: 8px 2px; }
   .slot-mobile-main:hover { background: var(--surface-subtle); }
+  .slot-mobile-credentials { display: flex; min-height: 48px; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; border-top: 1px solid var(--border); padding: 7px 2px 7px 38px; }
+  .slot-mobile-credentials > button:first-child { max-width: calc(100% - 184px); min-height: 44px; }
+  .slot-mobile-credentials .credential-icon-button { width: 44px; height: 44px; flex-basis: 44px; }
+  .slot-mobile-credentials > div { width: auto; flex: 0 0 auto; }
   .slot-mobile-number { display: grid; width: 26px; height: 26px; flex: 0 0 26px; place-items: center; border-radius: 5px; background: var(--surface-subtle); font-size: 11px; font-weight: 700; }
   .slot-mobile-meta { display: flex; min-height: 48px; align-items: center; gap: 10px; border-top: 1px solid var(--border); padding: 8px 2px 8px 38px; }
   .slot-mobile-meta { flex-wrap: wrap; }

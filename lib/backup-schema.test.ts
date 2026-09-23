@@ -32,6 +32,14 @@ describe("backup validation", () => {
     expect(parseAndValidateBackup(backup()).version).toBe(3);
   });
 
+  it("preserves encrypted verification links and accepts older slots without them", () => {
+    const baseSlot = { id: "slot-1", platformId: "platform-1", slotNumber: 1, accountEmail: "test@example.com", encryptedPassword: "encrypted-password", cardLast4: null, billingDay: 1, capacity: 5, status: "ACTIVE", note: null, createdAt: now, updatedAt: now };
+    const current = parseAndValidateBackup(backup({ slots: [{ ...baseSlot, encryptedVerificationUrl: "encrypted-url" }] }));
+    const legacy = parseAndValidateBackup(backup({ slots: [baseSlot] }));
+    expect(current.slots[0].encryptedVerificationUrl).toBe("encrypted-url");
+    expect(legacy.slots[0].encryptedVerificationUrl).toBeUndefined();
+  });
+
   it("rejects a backup encrypted by another installation", () => {
     expect(() => parseAndValidateBackup(backup({ encryptionKeyFingerprint: "0".repeat(16) }))).toThrowError(BackupValidationError);
   });

@@ -49,6 +49,7 @@ model ParkingSlot {
   slotNumber        Int
   accountEmail      String       @unique
   encryptedPassword String
+  encryptedVerificationUrl String?
   cardLast4         String?
   billingDay        Int
   capacity          Int

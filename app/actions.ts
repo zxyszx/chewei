@@ -93,6 +93,15 @@ const slotSchema = z.object({
   slotNumber: z.coerce.number().int().positive(),
   accountEmail: z.string().email(),
   password: z.string().min(6),
+  verificationUrl: z
+    .string()
+    .trim()
+    .max(2000)
+    .refine(
+      (value) => value === "" || /^https?:\/\//i.test(value),
+      "验证码链接必须以 http:// 或 https:// 开头",
+    )
+    .default(""),
   cardLast4: z
     .string()
     .regex(/^\d{4}$/)
@@ -114,7 +123,7 @@ export async function createSlotAction(
       message: parsed.error.issues[0]?.message || initialError.message,
     };
   try {
-    const { password, ...slotData } = parsed.data;
+    const { password, verificationUrl, ...slotData } = parsed.data;
     const existing = await prisma.parkingSlot.findFirst({
       where: {
         accountEmail: { equals: slotData.accountEmail, mode: "insensitive" },
@@ -128,6 +137,9 @@ export async function createSlotAction(
         ...slotData,
         cardLast4: slotData.cardLast4 || null,
         encryptedPassword: encryptSecret(password),
+        encryptedVerificationUrl: verificationUrl
+          ? encryptSecret(verificationUrl)
+          : null,
       },
     });
     await log(user.id, "CREATE_SLOT", "parking_slot", slot.id, {
@@ -150,6 +162,7 @@ const updateSlotSchema = slotSchema.omit({ password: true }).extend({
     .optional()
     .default(""),
   status: z.enum(["ACTIVE", "PAUSED", "ABNORMAL"]),
+  clearVerificationUrl: z.enum(["true"]).optional(),
 });
 
 export async function updateSlotAction(
@@ -164,7 +177,13 @@ export async function updateSlotAction(
       message: parsed.error.issues[0]?.message || initialError.message,
     };
   try {
-    const { slotId, password, ...data } = parsed.data;
+    const {
+      slotId,
+      password,
+      verificationUrl,
+      clearVerificationUrl,
+      ...data
+    } = parsed.data;
     const duplicate = await prisma.parkingSlot.findFirst({
       where: {
         id: { not: slotId },
@@ -188,12 +207,22 @@ export async function updateSlotAction(
         ...data,
         cardLast4: data.cardLast4 || null,
         ...(password ? { encryptedPassword: encryptSecret(password) } : {}),
+        encryptedVerificationUrl: clearVerificationUrl
+          ? null
+          : verificationUrl
+            ? encryptSecret(verificationUrl)
+            : undefined,
       },
     });
     await log(user.id, "UPDATE_SLOT", "parking_slot", slot.id, {
       slotNumber: slot.slotNumber,
       email: slot.accountEmail,
       status: slot.status,
+      verificationUrl: clearVerificationUrl
+        ? "removed"
+        : verificationUrl
+          ? "updated"
+          : "unchanged",
     });
     revalidatePath("/");
     return { ok: true, message: `合租车位 #${slot.slotNumber} 已更新` };
@@ -716,18 +745,52 @@ export async function moveMemberFormAction(
 
 export async function revealPasswordAction(
   slotId: string,
+  intent: "view" | "copy" = "view",
 ): Promise<ActionState> {
   const user = await requireUser();
-  const slot = await prisma.parkingSlot.findUniqueOrThrow({
+  const id = z.string().min(1).max(100).safeParse(slotId);
+  if (!id.success) return { ok: false, message: "合租车位参数无效" };
+  const requestedIntent = z.enum(["view", "copy"]).safeParse(intent);
+  if (!requestedIntent.success) return { ok: false, message: "密码操作参数无效" };
+  const slot = await prisma.parkingSlot.findUnique({
     where: { id: slotId },
   });
-  await log(user.id, "VIEW_PASSWORD", "parking_slot", slot.id, {
+  if (!slot) return { ok: false, message: "没有找到该合租车位" };
+  await log(user.id, requestedIntent.data === "copy" ? "COPY_PASSWORD" : "VIEW_PASSWORD", "parking_slot", slot.id, {
     email: slot.accountEmail,
   });
   return {
     ok: true,
-    message: "密码已显示，此操作已记录",
+    message: requestedIntent.data === "copy" ? "密码已读取，此操作已记录" : "密码已显示，此操作已记录",
     data: { password: decryptSecret(slot.encryptedPassword) },
+  };
+}
+
+export async function copyVerificationUrlAction(
+  slotId: string,
+): Promise<ActionState> {
+  const user = await requireUser();
+  const id = z.string().min(1).max(100).safeParse(slotId);
+  if (!id.success) return { ok: false, message: "合租车位参数无效" };
+  const slot = await prisma.parkingSlot.findUnique({
+    where: { id: slotId },
+    select: {
+      id: true,
+      accountEmail: true,
+      encryptedVerificationUrl: true,
+    },
+  });
+  if (!slot) return { ok: false, message: "没有找到该合租车位" };
+  if (!slot.encryptedVerificationUrl) {
+    return { ok: false, message: "该账号尚未设置验证码链接" };
+  }
+  await log(user.id, "COPY_VERIFICATION_URL", "parking_slot", slot.id, {
+    email: slot.accountEmail,
+  });
+  return {
+    ok: true,
+    message: "验证码链接已读取，此操作已记录",
+    data: { verificationUrl: decryptSecret(slot.encryptedVerificationUrl) },
   };
 }
 

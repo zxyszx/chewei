@@ -18,6 +18,7 @@ export default async function SlotsPage({ searchParams }: { searchParams: Promis
         id: true,
         slotNumber: true,
         accountEmail: true,
+        encryptedVerificationUrl: true,
         cardLast4: true,
         billingDay: true,
         capacity: true,
@@ -33,8 +34,9 @@ export default async function SlotsPage({ searchParams }: { searchParams: Promis
       orderBy: [{ platform: { name: "asc" } }, { slotNumber: "asc" }],
     }),
   ]);
-  const slots: SlotItem[] = rows.map(({ _count, ...slot }) => ({
+  const slots: SlotItem[] = rows.map(({ _count, encryptedVerificationUrl, ...slot }) => ({
     ...slot,
+    hasVerificationUrl: Boolean(encryptedVerificationUrl),
     members: slot.members.map((member) => ({ ...member, startDate: member.startDate.toISOString(), expireDate: member.expireDate.toISOString() })),
     renewals: [],
     renewalCount: _count.renewals,
